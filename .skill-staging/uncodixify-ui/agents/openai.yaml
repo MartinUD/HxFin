@@ -1,0 +1,4 @@
+interface:
+  display_name: "Uncodixify UI"
+  short_description: "Strip default AI styling from UI work"
+  default_prompt: "Use $uncodixify-ui to redesign this interface with restrained, product-like UI choices."

@@ -1,0 +1,87 @@
+Task
+
+Generate a Japandi-style office desin based on the provided image of my room.
+
+Important Constraints
+
+Use the provided image as the base scene.
+
+The image defines the room layout and camera perspective.
+
+Do not change the camera position, perspective, or room geometry.
+
+The viewer is standing in the doorway where the original photo was taken.
+
+Furniture Layout (Required)
+
+The chair must be positioned at the farthest possible point in the room, behind the desk.
+
+then place the desk infront of the chair.
+
+From the camera’s perspective:
+
+The viewer should see the backside of the monitors.
+
+Desk Setup (Required)
+
+Place three 27-inch monitors on the desk.
+
+The monitors should face the chair. Which is again in the furthest possible point away from the camera.
+
+Because of the viewing angle, the backs of the monitors must be visible.
+
+Chair (Required)
+
+Use a black Secretlab Titan chair.
+
+Interior Style
+
+Apply a Japandi aesthetic:
+
+
+
+Minimalist
+
+Natural materials
+
+Warm neutral colors
+
+Calm, uncluttered atmosphere
+
+Balanced mix of Scandinavian simplicity and Japanese minimalism
+
+Interior Elements (Creative Suggestions)
+
+You are encouraged to creatively add elements that fit a Japandi workspace. These are suggestions rather than strict requirements.
+
+Possible additions:
+
+
+
+An organic wave-inspired floor pattern or rug to add subtle movement.
+
+Light linen or textured curtains that soften the space.
+
+Minimal Japandi-style wall art, such as abstract prints, ink-style artwork, or nature-inspired pieces.
+
+Floating wooden shelves that can hold plants, books, or ceramics.
+
+Greenery, including small plants on shelves and possibly a larger floor plant in a simple pot.
+
+Soft ambient lighting, such as a minimalist floor lamp or warm indirect lighting.
+
+Natural materials like wood, woven textures, stone, or matte ceramics.
+
+These additions should enhance the Japandi aesthetic while keeping the room minimal and balanced.
+
+Composition Reminder
+
+The camera remains at the doorway.
+
+The desk and monitors are deeper in the room.
+
+The chair is at the far end of the room.
+
+The backs of the monitors must be visible.
+
+Keep the original perspective from the provided image.
