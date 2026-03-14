@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import db, { type SqlParams } from '$lib/server/db';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
+
+import { orm } from '$lib/server/drizzle/client';
+import { loans } from '$lib/server/drizzle/schema';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	CreateLoanInput,
@@ -9,20 +12,7 @@ import type {
 	UpdateLoanInput
 } from '$lib/server/loans/types';
 
-interface LoanRow {
-	id: string;
-	direction: 'lent' | 'borrowed';
-	counterparty: string;
-	principal_amount: number;
-	outstanding_amount: number;
-	currency: string;
-	issue_date: string;
-	due_date: string | null;
-	status: 'open' | 'paid' | 'overdue';
-	notes: string | null;
-	created_at: string;
-	updated_at: string;
-}
+type LoanInsert = typeof loans.$inferInsert;
 
 function ensureReady(): void {
 	ensureSchema();
@@ -32,89 +22,32 @@ function nowIso(): string {
 	return new Date().toISOString();
 }
 
-function mapLoan(row: LoanRow): Loan {
-	return {
-		id: row.id,
-		direction: row.direction,
-		counterparty: row.counterparty,
-		principalAmount: row.principal_amount,
-		outstandingAmount: row.outstanding_amount,
-		currency: row.currency,
-		issueDate: row.issue_date,
-		dueDate: row.due_date,
-		status: row.status,
-		notes: row.notes,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at
-	};
-}
-
 export function listLoans(query: ListLoansQuery = {}): Loan[] {
 	ensureReady();
 
-	const whereClauses: string[] = [];
-	const params: SqlParams = {};
+	const conditions = [];
 
 	if (query.direction) {
-		whereClauses.push('direction = @direction');
-		params.direction = query.direction;
+		conditions.push(eq(loans.direction, query.direction));
 	}
 
 	if (query.status) {
-		whereClauses.push('status = @status');
-		params.status = query.status;
+		conditions.push(eq(loans.status, query.status));
 	}
 
-	const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-	const rows = db
-		.prepare(
-			`SELECT
-				id,
-				direction,
-				counterparty,
-				principal_amount,
-				outstanding_amount,
-				currency,
-				issue_date,
-				due_date,
-				status,
-				notes,
-				created_at,
-				updated_at
-			FROM loans
-			${whereSql}
-			ORDER BY due_date IS NULL ASC, due_date ASC, created_at DESC`
-		)
-		.all(params) as LoanRow[];
-
-	return rows.map(mapLoan);
+	return orm
+		.select()
+		.from(loans)
+		.where(conditions.length > 0 ? and(...conditions) : undefined)
+		.orderBy(sql`${loans.dueDate} is null`, asc(loans.dueDate), desc(loans.createdAt))
+		.all();
 }
 
 export function getLoanById(loanId: string): Loan | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT
-				id,
-				direction,
-				counterparty,
-				principal_amount,
-				outstanding_amount,
-				currency,
-				issue_date,
-				due_date,
-				status,
-				notes,
-				created_at,
-				updated_at
-			FROM loans
-			WHERE id = ?`
-		)
-		.get(loanId) as LoanRow | undefined;
-
-	return row ? mapLoan(row) : null;
+	const row = orm.select().from(loans).where(eq(loans.id, loanId)).get();
+	return row ?? null;
 }
 
 export function createLoan(input: CreateLoanInput): Loan {
@@ -123,48 +56,23 @@ export function createLoan(input: CreateLoanInput): Loan {
 	const id = randomUUID();
 	const timestamp = nowIso();
 
-	db.prepare(
-		`INSERT INTO loans (
+	orm
+		.insert(loans)
+		.values({
 			id,
-			direction,
-			counterparty,
-			principal_amount,
-			outstanding_amount,
-			currency,
-			issue_date,
-			due_date,
-			status,
-			notes,
-			created_at,
-			updated_at
-		) VALUES (
-			@id,
-			@direction,
-			@counterparty,
-			@principalAmount,
-			@outstandingAmount,
-			@currency,
-			@issueDate,
-			@dueDate,
-			@status,
-			@notes,
-			@createdAt,
-			@updatedAt
-		)`
-	).run({
-		id,
-		direction: input.direction,
-		counterparty: input.counterparty,
-		principalAmount: input.principalAmount,
-		outstandingAmount: input.outstandingAmount,
-		currency: input.currency,
-		issueDate: input.issueDate,
-		dueDate: input.dueDate,
-		status: input.status,
-		notes: input.notes,
-		createdAt: timestamp,
-		updatedAt: timestamp
-	});
+			direction: input.direction,
+			counterparty: input.counterparty,
+			principalAmount: input.principalAmount,
+			outstandingAmount: input.outstandingAmount,
+			currency: input.currency,
+			issueDate: input.issueDate,
+			dueDate: input.dueDate,
+			status: input.status,
+			notes: input.notes,
+			createdAt: timestamp,
+			updatedAt: timestamp
+		})
+		.run();
 
 	const created = getLoanById(id);
 	if (!created) {
@@ -181,62 +89,47 @@ export function updateLoan(loanId: string, input: UpdateLoanInput): Loan | null 
 		return null;
 	}
 
-	const fields: string[] = [];
-	const params: SqlParams = { id: loanId };
+	const updates: Partial<LoanInsert> = {};
 
 	if (input.direction !== undefined) {
-		fields.push('direction = @direction');
-		params.direction = input.direction;
+		updates.direction = input.direction;
 	}
 
 	if (input.counterparty !== undefined) {
-		fields.push('counterparty = @counterparty');
-		params.counterparty = input.counterparty;
+		updates.counterparty = input.counterparty;
 	}
 
 	if (input.principalAmount !== undefined) {
-		fields.push('principal_amount = @principalAmount');
-		params.principalAmount = input.principalAmount;
+		updates.principalAmount = input.principalAmount;
 	}
 
 	if (input.outstandingAmount !== undefined) {
-		fields.push('outstanding_amount = @outstandingAmount');
-		params.outstandingAmount = input.outstandingAmount;
+		updates.outstandingAmount = input.outstandingAmount;
 	}
 
 	if (input.currency !== undefined) {
-		fields.push('currency = @currency');
-		params.currency = input.currency;
+		updates.currency = input.currency;
 	}
 
 	if (input.issueDate !== undefined) {
-		fields.push('issue_date = @issueDate');
-		params.issueDate = input.issueDate;
+		updates.issueDate = input.issueDate;
 	}
 
 	if (input.dueDate !== undefined) {
-		fields.push('due_date = @dueDate');
-		params.dueDate = input.dueDate;
+		updates.dueDate = input.dueDate;
 	}
 
 	if (input.status !== undefined) {
-		fields.push('status = @status');
-		params.status = input.status;
+		updates.status = input.status;
 	}
 
 	if (input.notes !== undefined) {
-		fields.push('notes = @notes');
-		params.notes = input.notes;
+		updates.notes = input.notes;
 	}
 
-	fields.push('updated_at = @updatedAt');
-	params.updatedAt = nowIso();
+	updates.updatedAt = nowIso();
 
-	db.prepare(
-		`UPDATE loans
-		 SET ${fields.join(', ')}
-		 WHERE id = @id`
-	).run(params);
+	orm.update(loans).set(updates).where(eq(loans.id, loanId)).run();
 
 	return getLoanById(loanId);
 }
@@ -244,6 +137,10 @@ export function updateLoan(loanId: string, input: UpdateLoanInput): Loan | null 
 export function deleteLoan(loanId: string): boolean {
 	ensureReady();
 
-	const result = db.prepare(`DELETE FROM loans WHERE id = ?`).run(loanId);
-	return result.changes > 0;
+	if (!getLoanById(loanId)) {
+		return false;
+	}
+
+	orm.delete(loans).where(eq(loans.id, loanId)).run();
+	return true;
 }

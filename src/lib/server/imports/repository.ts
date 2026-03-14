@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
 
-import db, { type SqlParams } from '$lib/server/db';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
+
+import sqlite from '$lib/server/db';
+import { orm } from '$lib/server/drizzle/client';
+import {
+	budgetCategories,
+	importBatches,
+	merchantCategoryRules,
+	transactions
+} from '$lib/server/drizzle/schema';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	ImportBatch,
@@ -12,41 +21,7 @@ import type {
 	TransactionMatchMethod
 } from '$lib/server/imports/types';
 
-interface ImportBatchRow {
-	id: string;
-	source_name: string;
-	imported_at: string;
-	row_count: number;
-	status: ImportBatchStatus;
-	created_at: string;
-	updated_at: string;
-}
-
-interface ImportedTransactionRow {
-	id: string;
-	booking_date: string;
-	description: string;
-	normalized_description: string;
-	amount: number;
-	currency: string;
-	category_id: string | null;
-	category_name: string | null;
-	match_method: TransactionMatchMethod;
-	import_batch_id: string;
-	import_batch_source_name: string;
-	created_at: string;
-	updated_at: string;
-}
-
-interface MerchantCategoryRuleRow {
-	id: string;
-	normalized_description: string;
-	category_id: string;
-	category_name: string | null;
-	confidence: number;
-	created_at: string;
-	updated_at: string;
-}
+type ImportBatchInsert = typeof importBatches.$inferInsert;
 
 function ensureReady(): void {
 	ensureSchema();
@@ -56,46 +31,34 @@ function nowIso(): string {
 	return new Date().toISOString();
 }
 
-function mapImportBatch(row: ImportBatchRow): ImportBatch {
-	return {
-		id: row.id,
-		sourceName: row.source_name,
-		importedAt: row.imported_at,
-		rowCount: row.row_count,
-		status: row.status,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at
-	};
+function mapImportedTransaction(row: {
+	id: string;
+	bookingDate: string;
+	description: string;
+	normalizedDescription: string;
+	amount: number;
+	currency: string;
+	categoryId: string | null;
+	categoryName: string | null;
+	matchMethod: TransactionMatchMethod;
+	importBatchId: string;
+	importBatchSourceName: string;
+	createdAt: string;
+	updatedAt: string;
+}): ImportedTransaction {
+	return row;
 }
 
-function mapImportedTransaction(row: ImportedTransactionRow): ImportedTransaction {
-	return {
-		id: row.id,
-		bookingDate: row.booking_date,
-		description: row.description,
-		normalizedDescription: row.normalized_description,
-		amount: row.amount,
-		currency: row.currency,
-		categoryId: row.category_id,
-		categoryName: row.category_name,
-		matchMethod: row.match_method,
-		importBatchId: row.import_batch_id,
-		importBatchSourceName: row.import_batch_source_name,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at
-	};
-}
-
-function mapMerchantCategoryRule(row: MerchantCategoryRuleRow): MerchantCategoryRule {
-	return {
-		id: row.id,
-		normalizedDescription: row.normalized_description,
-		categoryId: row.category_id,
-		categoryName: row.category_name,
-		confidence: row.confidence,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at
-	};
+function mapMerchantCategoryRule(row: {
+	id: string;
+	normalizedDescription: string;
+	categoryId: string;
+	categoryName: string | null;
+	confidence: number;
+	createdAt: string;
+	updatedAt: string;
+}): MerchantCategoryRule {
+	return row;
 }
 
 export function createImportBatch(input: {
@@ -109,33 +72,18 @@ export function createImportBatch(input: {
 	const id = randomUUID();
 	const timestamp = nowIso();
 
-	db.prepare(
-		`INSERT INTO import_batches (
+	orm
+		.insert(importBatches)
+		.values({
 			id,
-			source_name,
-			imported_at,
-			row_count,
-			status,
-			created_at,
-			updated_at
-		) VALUES (
-			@id,
-			@sourceName,
-			@importedAt,
-			@rowCount,
-			@status,
-			@createdAt,
-			@updatedAt
-		)`
-	).run({
-		id,
-		sourceName: input.sourceName,
-		importedAt: input.importedAt,
-		rowCount: input.rowCount,
-		status: input.status,
-		createdAt: timestamp,
-		updatedAt: timestamp
-	});
+			sourceName: input.sourceName,
+			importedAt: input.importedAt,
+			rowCount: input.rowCount,
+			status: input.status,
+			createdAt: timestamp,
+			updatedAt: timestamp
+		})
+		.run();
 
 	const batch = getImportBatchById(id);
 	if (!batch) {
@@ -148,15 +96,13 @@ export function createImportBatch(input: {
 export function getImportBatchById(batchId: string): ImportBatch | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT id, source_name, imported_at, row_count, status, created_at, updated_at
-			 FROM import_batches
-			 WHERE id = ?`
-		)
-		.get(batchId) as ImportBatchRow | undefined;
+	const row = orm
+		.select()
+		.from(importBatches)
+		.where(eq(importBatches.id, batchId))
+		.get();
 
-	return row ? mapImportBatch(row) : null;
+	return row ?? null;
 }
 
 export function updateImportBatchStatus(
@@ -165,11 +111,12 @@ export function updateImportBatchStatus(
 ): ImportBatch | null {
 	ensureReady();
 
-	db.prepare(
-		`UPDATE import_batches
-		 SET status = ?, updated_at = ?
-		 WHERE id = ?`
-	).run(status, nowIso(), batchId);
+	const updates: Partial<ImportBatchInsert> = {
+		status,
+		updatedAt: nowIso()
+	};
+
+	orm.update(importBatches).set(updates).where(eq(importBatches.id, batchId)).run();
 
 	return getImportBatchById(batchId);
 }
@@ -177,17 +124,12 @@ export function updateImportBatchStatus(
 export function listImportBatches(query: ListImportBatchesQuery = {}): ImportBatch[] {
 	ensureReady();
 
-	const limit = query.limit ?? 20;
-	const rows = db
-		.prepare(
-			`SELECT id, source_name, imported_at, row_count, status, created_at, updated_at
-			 FROM import_batches
-			 ORDER BY imported_at DESC, created_at DESC
-			 LIMIT ?`
-		)
-		.all(limit) as ImportBatchRow[];
-
-	return rows.map(mapImportBatch);
+	return orm
+		.select()
+		.from(importBatches)
+		.orderBy(desc(importBatches.importedAt), desc(importBatches.createdAt))
+		.limit(query.limit ?? 20)
+		.all();
 }
 
 export function insertImportedTransaction(input: {
@@ -205,45 +147,22 @@ export function insertImportedTransaction(input: {
 	const id = randomUUID();
 	const timestamp = nowIso();
 
-	db.prepare(
-		`INSERT INTO transactions (
+	orm
+		.insert(transactions)
+		.values({
 			id,
-			booking_date,
-			description,
-			normalized_description,
-			amount,
-			currency,
-			category_id,
-			match_method,
-			import_batch_id,
-			created_at,
-			updated_at
-		) VALUES (
-			@id,
-			@bookingDate,
-			@description,
-			@normalizedDescription,
-			@amount,
-			@currency,
-			@categoryId,
-			@matchMethod,
-			@importBatchId,
-			@createdAt,
-			@updatedAt
-		)`
-	).run({
-		id,
-		bookingDate: input.bookingDate,
-		description: input.description,
-		normalizedDescription: input.normalizedDescription,
-		amount: input.amount,
-		currency: input.currency,
-		categoryId: input.categoryId,
-		matchMethod: input.matchMethod,
-		importBatchId: input.importBatchId,
-		createdAt: timestamp,
-		updatedAt: timestamp
-	});
+			bookingDate: input.bookingDate,
+			description: input.description,
+			normalizedDescription: input.normalizedDescription,
+			amount: input.amount,
+			currency: input.currency,
+			categoryId: input.categoryId,
+			matchMethod: input.matchMethod,
+			importBatchId: input.importBatchId,
+			createdAt: timestamp,
+			updatedAt: timestamp
+		})
+		.run();
 
 	const inserted = getTransactionById(id);
 	if (!inserted) {
@@ -256,28 +175,27 @@ export function insertImportedTransaction(input: {
 export function getTransactionById(transactionId: string): ImportedTransaction | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT
-				t.id,
-				t.booking_date,
-				t.description,
-				t.normalized_description,
-				t.amount,
-				t.currency,
-				t.category_id,
-				c.name AS category_name,
-				t.match_method,
-				t.import_batch_id,
-				b.source_name AS import_batch_source_name,
-				t.created_at,
-				t.updated_at
-			FROM transactions t
-			JOIN import_batches b ON b.id = t.import_batch_id
-			LEFT JOIN budget_categories c ON c.id = t.category_id
-			WHERE t.id = ?`
-		)
-		.get(transactionId) as ImportedTransactionRow | undefined;
+	const row = orm
+		.select({
+			id: transactions.id,
+			bookingDate: transactions.bookingDate,
+			description: transactions.description,
+			normalizedDescription: transactions.normalizedDescription,
+			amount: transactions.amount,
+			currency: transactions.currency,
+			categoryId: transactions.categoryId,
+			categoryName: budgetCategories.name,
+			matchMethod: transactions.matchMethod,
+			importBatchId: transactions.importBatchId,
+			importBatchSourceName: importBatches.sourceName,
+			createdAt: transactions.createdAt,
+			updatedAt: transactions.updatedAt
+		})
+		.from(transactions)
+		.innerJoin(importBatches, eq(importBatches.id, transactions.importBatchId))
+		.leftJoin(budgetCategories, eq(budgetCategories.id, transactions.categoryId))
+		.where(eq(transactions.id, transactionId))
+		.get();
 
 	return row ? mapImportedTransaction(row) : null;
 }
@@ -287,40 +205,35 @@ export function listReviewTransactions(
 ): ImportedTransaction[] {
 	ensureReady();
 
-	const whereClauses = [`t.match_method = 'needs_review'`];
-	const params: SqlParams = {
-		limit: query.limit ?? 200
-	};
+	const conditions = [eq(transactions.matchMethod, 'needs_review')];
 
 	if (query.batchId) {
-		whereClauses.push('t.import_batch_id = @batchId');
-		params.batchId = query.batchId;
+		conditions.push(eq(transactions.importBatchId, query.batchId));
 	}
 
-	const rows = db
-		.prepare(
-			`SELECT
-				t.id,
-				t.booking_date,
-				t.description,
-				t.normalized_description,
-				t.amount,
-				t.currency,
-				t.category_id,
-				c.name AS category_name,
-				t.match_method,
-				t.import_batch_id,
-				b.source_name AS import_batch_source_name,
-				t.created_at,
-				t.updated_at
-			FROM transactions t
-			JOIN import_batches b ON b.id = t.import_batch_id
-			LEFT JOIN budget_categories c ON c.id = t.category_id
-			WHERE ${whereClauses.join(' AND ')}
-			ORDER BY t.booking_date DESC, t.created_at DESC
-			LIMIT @limit`
-		)
-		.all(params) as ImportedTransactionRow[];
+	const rows = orm
+		.select({
+			id: transactions.id,
+			bookingDate: transactions.bookingDate,
+			description: transactions.description,
+			normalizedDescription: transactions.normalizedDescription,
+			amount: transactions.amount,
+			currency: transactions.currency,
+			categoryId: transactions.categoryId,
+			categoryName: budgetCategories.name,
+			matchMethod: transactions.matchMethod,
+			importBatchId: transactions.importBatchId,
+			importBatchSourceName: importBatches.sourceName,
+			createdAt: transactions.createdAt,
+			updatedAt: transactions.updatedAt
+		})
+		.from(transactions)
+		.innerJoin(importBatches, eq(importBatches.id, transactions.importBatchId))
+		.leftJoin(budgetCategories, eq(budgetCategories.id, transactions.categoryId))
+		.where(and(...conditions))
+		.orderBy(desc(transactions.bookingDate), desc(transactions.createdAt))
+		.limit(query.limit ?? 200)
+		.all();
 
 	return rows.map(mapImportedTransaction);
 }
@@ -334,16 +247,15 @@ export function updateTransactionCategory(
 ): ImportedTransaction | null {
 	ensureReady();
 
-	db.prepare(
-		`UPDATE transactions
-		 SET category_id = @categoryId, match_method = @matchMethod, updated_at = @updatedAt
-		 WHERE id = @id`
-	).run({
-		id: transactionId,
-		categoryId: input.categoryId,
-		matchMethod: input.matchMethod,
-		updatedAt: nowIso()
-	});
+	orm
+		.update(transactions)
+		.set({
+			categoryId: input.categoryId,
+			matchMethod: input.matchMethod,
+			updatedAt: nowIso()
+		})
+		.where(eq(transactions.id, transactionId))
+		.run();
 
 	return getTransactionById(transactionId);
 }
@@ -353,21 +265,20 @@ export function getMerchantCategoryRuleByNormalizedDescription(
 ): MerchantCategoryRule | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT
-				r.id,
-				r.normalized_description,
-				r.category_id,
-				c.name AS category_name,
-				r.confidence,
-				r.created_at,
-				r.updated_at
-			FROM merchant_category_rules r
-			LEFT JOIN budget_categories c ON c.id = r.category_id
-			WHERE r.normalized_description = ?`
-		)
-		.get(normalizedDescription) as MerchantCategoryRuleRow | undefined;
+	const row = orm
+		.select({
+			id: merchantCategoryRules.id,
+			normalizedDescription: merchantCategoryRules.normalizedDescription,
+			categoryId: merchantCategoryRules.categoryId,
+			categoryName: budgetCategories.name,
+			confidence: merchantCategoryRules.confidence,
+			createdAt: merchantCategoryRules.createdAt,
+			updatedAt: merchantCategoryRules.updatedAt
+		})
+		.from(merchantCategoryRules)
+		.leftJoin(budgetCategories, eq(budgetCategories.id, merchantCategoryRules.categoryId))
+		.where(eq(merchantCategoryRules.normalizedDescription, normalizedDescription))
+		.get();
 
 	return row ? mapMerchantCategoryRule(row) : null;
 }
@@ -384,41 +295,27 @@ export function upsertMerchantCategoryRule(input: {
 	const confidence = input.confidence ?? 1;
 
 	if (existing) {
-		db.prepare(
-			`UPDATE merchant_category_rules
-			 SET category_id = @categoryId, confidence = @confidence, updated_at = @updatedAt
-			 WHERE normalized_description = @normalizedDescription`
-		).run({
-			normalizedDescription: input.normalizedDescription,
-			categoryId: input.categoryId,
-			confidence,
-			updatedAt: timestamp
-		});
-	} else {
-		db.prepare(
-			`INSERT INTO merchant_category_rules (
-				id,
-				normalized_description,
-				category_id,
+		orm
+			.update(merchantCategoryRules)
+			.set({
+				categoryId: input.categoryId,
 				confidence,
-				created_at,
-				updated_at
-			) VALUES (
-				@id,
-				@normalizedDescription,
-				@categoryId,
-				@confidence,
-				@createdAt,
-				@updatedAt
-			)`
-		).run({
-			id: randomUUID(),
-			normalizedDescription: input.normalizedDescription,
-			categoryId: input.categoryId,
-			confidence,
-			createdAt: timestamp,
-			updatedAt: timestamp
-		});
+				updatedAt: timestamp
+			})
+			.where(eq(merchantCategoryRules.normalizedDescription, input.normalizedDescription))
+			.run();
+	} else {
+		orm
+			.insert(merchantCategoryRules)
+			.values({
+				id: randomUUID(),
+				normalizedDescription: input.normalizedDescription,
+				categoryId: input.categoryId,
+				confidence,
+				createdAt: timestamp,
+				updatedAt: timestamp
+			})
+			.run();
 	}
 
 	const rule = getMerchantCategoryRuleByNormalizedDescription(input.normalizedDescription);
@@ -434,37 +331,40 @@ export function findMostRecentCategorizedTransactionByNormalizedDescription(
 ): ImportedTransaction | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT
-				t.id,
-				t.booking_date,
-				t.description,
-				t.normalized_description,
-				t.amount,
-				t.currency,
-				t.category_id,
-				c.name AS category_name,
-				t.match_method,
-				t.import_batch_id,
-				b.source_name AS import_batch_source_name,
-				t.created_at,
-				t.updated_at
-			FROM transactions t
-			JOIN import_batches b ON b.id = t.import_batch_id
-			LEFT JOIN budget_categories c ON c.id = t.category_id
-			WHERE t.normalized_description = ?
-			  AND t.category_id IS NOT NULL
-			ORDER BY t.booking_date DESC, t.created_at DESC
-			LIMIT 1`
+	const row = orm
+		.select({
+			id: transactions.id,
+			bookingDate: transactions.bookingDate,
+			description: transactions.description,
+			normalizedDescription: transactions.normalizedDescription,
+			amount: transactions.amount,
+			currency: transactions.currency,
+			categoryId: transactions.categoryId,
+			categoryName: budgetCategories.name,
+			matchMethod: transactions.matchMethod,
+			importBatchId: transactions.importBatchId,
+			importBatchSourceName: importBatches.sourceName,
+			createdAt: transactions.createdAt,
+			updatedAt: transactions.updatedAt
+		})
+		.from(transactions)
+		.innerJoin(importBatches, eq(importBatches.id, transactions.importBatchId))
+		.leftJoin(budgetCategories, eq(budgetCategories.id, transactions.categoryId))
+		.where(
+			and(
+				eq(transactions.normalizedDescription, normalizedDescription),
+				isNotNull(transactions.categoryId)
+			)
 		)
-		.get(normalizedDescription) as ImportedTransactionRow | undefined;
+		.orderBy(desc(transactions.bookingDate), desc(transactions.createdAt))
+		.limit(1)
+		.get();
 
 	return row ? mapImportedTransaction(row) : null;
 }
 
 export function withDatabaseTransaction<T>(action: () => T): T {
 	ensureReady();
-	const txn = db.transaction(action);
+	const txn = sqlite.transaction(action);
 	return txn();
 }

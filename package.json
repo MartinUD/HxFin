@@ -8,7 +8,10 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"db:generate": "drizzle-kit generate",
+		"db:pull": "drizzle-kit pull",
+		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.11.0",
@@ -21,6 +24,8 @@
 		"@types/node": "^25.2.3",
 		"bits-ui": "^2.16.1",
 		"clsx": "^2.1.1",
+		"drizzle-kit": "^0.31.9",
+		"drizzle-orm": "^0.45.1",
 		"svelte": "5.49.2",
 		"svelte-check": "^4.0.0",
 		"tailwind-merge": "^3.5.0",

@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import db, { type SqlParams } from '$lib/server/db';
+import { and, desc, eq, sql } from 'drizzle-orm';
+
+import { orm } from '$lib/server/drizzle/client';
+import { budgetCategories, recurringCosts } from '$lib/server/drizzle/schema';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	BudgetCategory,
@@ -12,29 +15,8 @@ import type {
 	UpdateRecurringCostInput
 } from '$lib/server/budget/types';
 
-interface BudgetCategoryRow {
-	id: string;
-	name: string;
-	description: string | null;
-	color: string | null;
-	created_at: string;
-	updated_at: string;
-}
-
-interface RecurringCostRow {
-	id: string;
-	category_id: string;
-	name: string;
-	amount: number;
-	period: 'weekly' | 'monthly' | 'yearly';
-	kind: 'expense' | 'investment';
-	is_essential: number;
-	start_date: string | null;
-	end_date: string | null;
-	is_active: number;
-	created_at: string;
-	updated_at: string;
-}
+type BudgetCategoryInsert = typeof budgetCategories.$inferInsert;
+type RecurringCostInsert = typeof recurringCosts.$inferInsert;
 
 function ensureReady(): void {
 	ensureSchema();
@@ -44,60 +26,26 @@ function nowIso(): string {
 	return new Date().toISOString();
 }
 
-function mapCategory(row: BudgetCategoryRow): BudgetCategory {
-	return {
-		id: row.id,
-		name: row.name,
-		description: row.description,
-		color: row.color,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at
-	};
-}
-
-function mapRecurringCost(row: RecurringCostRow): RecurringCost {
-	return {
-		id: row.id,
-		categoryId: row.category_id,
-		name: row.name,
-		amount: row.amount,
-		period: row.period,
-		kind: row.kind,
-		isEssential: row.is_essential === 1,
-		startDate: row.start_date,
-		endDate: row.end_date,
-		isActive: row.is_active === 1,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at
-	};
-}
-
 export function listCategories(): BudgetCategory[] {
 	ensureReady();
 
-	const rows = db
-		.prepare(
-			`SELECT id, name, description, color, created_at, updated_at
-			 FROM budget_categories
-			 ORDER BY name COLLATE NOCASE ASC`
-		)
-		.all() as BudgetCategoryRow[];
-
-	return rows.map(mapCategory);
+	return orm
+		.select()
+		.from(budgetCategories)
+		.orderBy(sql`${budgetCategories.name} collate nocase asc`)
+		.all();
 }
 
 export function getCategoryById(categoryId: string): BudgetCategory | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT id, name, description, color, created_at, updated_at
-			 FROM budget_categories
-			 WHERE id = ?`
-		)
-		.get(categoryId) as BudgetCategoryRow | undefined;
+	const row = orm
+		.select()
+		.from(budgetCategories)
+		.where(eq(budgetCategories.id, categoryId))
+		.get();
 
-	return row ? mapCategory(row) : null;
+	return row ?? null;
 }
 
 export function createCategory(input: CreateCategoryInput): BudgetCategory {
@@ -106,20 +54,17 @@ export function createCategory(input: CreateCategoryInput): BudgetCategory {
 	const id = randomUUID();
 	const timestamp = nowIso();
 
-	db.prepare(
-		`INSERT INTO budget_categories (
-			id, name, description, color, created_at, updated_at
-		) VALUES (
-			@id, @name, @description, @color, @createdAt, @updatedAt
-		)`
-	).run({
-		id,
-		name: input.name,
-		description: input.description,
-		color: input.color,
-		createdAt: timestamp,
-		updatedAt: timestamp
-	});
+	orm
+		.insert(budgetCategories)
+		.values({
+			id,
+			name: input.name,
+			description: input.description,
+			color: input.color,
+			createdAt: timestamp,
+			updatedAt: timestamp
+		})
+		.run();
 
 	const created = getCategoryById(id);
 	if (!created) {
@@ -139,34 +84,27 @@ export function updateCategory(
 		return null;
 	}
 
-	const fields: string[] = [];
-	const params: SqlParams = {
-		id: categoryId
-	};
+	const updates: Partial<BudgetCategoryInsert> = {};
 
 	if (input.name !== undefined) {
-		fields.push('name = @name');
-		params.name = input.name;
+		updates.name = input.name;
 	}
 
 	if (input.description !== undefined) {
-		fields.push('description = @description');
-		params.description = input.description;
+		updates.description = input.description;
 	}
 
 	if (input.color !== undefined) {
-		fields.push('color = @color');
-		params.color = input.color;
+		updates.color = input.color;
 	}
 
-	fields.push('updated_at = @updatedAt');
-	params.updatedAt = nowIso();
+	updates.updatedAt = nowIso();
 
-	db.prepare(
-		`UPDATE budget_categories
-		 SET ${fields.join(', ')}
-		 WHERE id = @id`
-	).run(params);
+	orm
+		.update(budgetCategories)
+		.set(updates)
+		.where(eq(budgetCategories.id, categoryId))
+		.run();
 
 	return getCategoryById(categoryId);
 }
@@ -174,51 +112,45 @@ export function updateCategory(
 export function deleteCategory(categoryId: string): boolean {
 	ensureReady();
 
-	const result = db.prepare(`DELETE FROM budget_categories WHERE id = ?`).run(categoryId);
-	return result.changes > 0;
+	if (!getCategoryById(categoryId)) {
+		return false;
+	}
+
+	orm.delete(budgetCategories).where(eq(budgetCategories.id, categoryId)).run();
+	return true;
 }
 
 export function listRecurringCosts(query: ListRecurringCostsQuery = {}): RecurringCost[] {
 	ensureReady();
 
-	const whereClauses: string[] = [];
-	const params: SqlParams = {};
+	const conditions = [];
 
 	if (!query.includeInactive) {
-		whereClauses.push('is_active = 1');
+		conditions.push(eq(recurringCosts.isActive, true));
 	}
 
 	if (query.categoryId) {
-		whereClauses.push('category_id = @categoryId');
-		params.categoryId = query.categoryId;
+		conditions.push(eq(recurringCosts.categoryId, query.categoryId));
 	}
 
-	const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-	const rows = db
-		.prepare(
-			`SELECT id, category_id, name, amount, period, kind, is_essential, start_date, end_date, is_active, created_at, updated_at
-			 FROM recurring_costs
-			 ${whereSql}
-			 ORDER BY created_at DESC`
-		)
-		.all(params) as RecurringCostRow[];
-
-	return rows.map(mapRecurringCost);
+	return orm
+		.select()
+		.from(recurringCosts)
+		.where(conditions.length > 0 ? and(...conditions) : undefined)
+		.orderBy(desc(recurringCosts.createdAt))
+		.all();
 }
 
 export function getRecurringCostById(costId: string): RecurringCost | null {
 	ensureReady();
 
-	const row = db
-		.prepare(
-			`SELECT id, category_id, name, amount, period, kind, is_essential, start_date, end_date, is_active, created_at, updated_at
-			 FROM recurring_costs
-			 WHERE id = ?`
-		)
-		.get(costId) as RecurringCostRow | undefined;
+	const row = orm
+		.select()
+		.from(recurringCosts)
+		.where(eq(recurringCosts.id, costId))
+		.get();
 
-	return row ? mapRecurringCost(row) : null;
+	return row ?? null;
 }
 
 export function createRecurringCost(input: CreateRecurringCostInput): RecurringCost {
@@ -227,48 +159,23 @@ export function createRecurringCost(input: CreateRecurringCostInput): RecurringC
 	const id = randomUUID();
 	const timestamp = nowIso();
 
-	db.prepare(
-		`INSERT INTO recurring_costs (
+	orm
+		.insert(recurringCosts)
+		.values({
 			id,
-			category_id,
-			name,
-			amount,
-			period,
-			kind,
-			is_essential,
-			start_date,
-			end_date,
-			is_active,
-			created_at,
-			updated_at
-		) VALUES (
-			@id,
-			@categoryId,
-			@name,
-			@amount,
-			@period,
-			@kind,
-			@isEssential,
-			@startDate,
-			@endDate,
-			@isActive,
-			@createdAt,
-			@updatedAt
-		)`
-	).run({
-		id,
-		categoryId: input.categoryId,
-		name: input.name,
-		amount: input.amount,
-		period: input.period,
-		kind: input.kind,
-		isEssential: input.isEssential ? 1 : 0,
-		startDate: input.startDate,
-		endDate: input.endDate,
-		isActive: input.isActive ? 1 : 0,
-		createdAt: timestamp,
-		updatedAt: timestamp
-	});
+			categoryId: input.categoryId,
+			name: input.name,
+			amount: input.amount,
+			period: input.period,
+			kind: input.kind,
+			isEssential: input.isEssential,
+			startDate: input.startDate,
+			endDate: input.endDate,
+			isActive: input.isActive,
+			createdAt: timestamp,
+			updatedAt: timestamp
+		})
+		.run();
 
 	const created = getRecurringCostById(id);
 	if (!created) {
@@ -288,64 +195,51 @@ export function updateRecurringCost(
 		return null;
 	}
 
-	const fields: string[] = [];
-	const params: SqlParams = {
-		id: costId
-	};
+	const updates: Partial<RecurringCostInsert> = {};
 
 	if (input.categoryId !== undefined) {
-		fields.push('category_id = @categoryId');
-		params.categoryId = input.categoryId;
+		updates.categoryId = input.categoryId;
 	}
 
 	if (input.name !== undefined) {
-		fields.push('name = @name');
-		params.name = input.name;
+		updates.name = input.name;
 	}
 
 	if (input.amount !== undefined) {
-		fields.push('amount = @amount');
-		params.amount = input.amount;
+		updates.amount = input.amount;
 	}
 
 	if (input.period !== undefined) {
-		fields.push('period = @period');
-		params.period = input.period;
+		updates.period = input.period;
 	}
 
 	if (input.kind !== undefined) {
-		fields.push('kind = @kind');
-		params.kind = input.kind;
+		updates.kind = input.kind;
 	}
 
 	if (input.isEssential !== undefined) {
-		fields.push('is_essential = @isEssential');
-		params.isEssential = input.isEssential ? 1 : 0;
+		updates.isEssential = input.isEssential;
 	}
 
 	if (input.startDate !== undefined) {
-		fields.push('start_date = @startDate');
-		params.startDate = input.startDate;
+		updates.startDate = input.startDate;
 	}
 
 	if (input.endDate !== undefined) {
-		fields.push('end_date = @endDate');
-		params.endDate = input.endDate;
+		updates.endDate = input.endDate;
 	}
 
 	if (input.isActive !== undefined) {
-		fields.push('is_active = @isActive');
-		params.isActive = input.isActive ? 1 : 0;
+		updates.isActive = input.isActive;
 	}
 
-	fields.push('updated_at = @updatedAt');
-	params.updatedAt = nowIso();
+	updates.updatedAt = nowIso();
 
-	db.prepare(
-		`UPDATE recurring_costs
-		 SET ${fields.join(', ')}
-		 WHERE id = @id`
-	).run(params);
+	orm
+		.update(recurringCosts)
+		.set(updates)
+		.where(eq(recurringCosts.id, costId))
+		.run();
 
 	return getRecurringCostById(costId);
 }
@@ -353,6 +247,10 @@ export function updateRecurringCost(
 export function deleteRecurringCost(costId: string): boolean {
 	ensureReady();
 
-	const result = db.prepare(`DELETE FROM recurring_costs WHERE id = ?`).run(costId);
-	return result.changes > 0;
+	if (!getRecurringCostById(costId)) {
+		return false;
+	}
+
+	orm.delete(recurringCosts).where(eq(recurringCosts.id, costId)).run();
+	return true;
 }
