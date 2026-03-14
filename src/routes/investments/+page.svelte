@@ -1,21 +1,14 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { browser } from '$app/environment';
+	import { withApiClient } from '$lib/api/client';
 	import { calculate } from '$lib/calculator';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
 	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
 	import ResultsPanel from '$lib/components/fire/ResultsPanel.svelte';
-	import { updateFinancialProfile } from '$lib/finance/api';
-	import {
-		createInvestmentHolding,
-		deleteInvestmentHolding,
-		fetchInvestmentAccounts,
-		fetchInvestmentHoldings,
-		refreshTrackedInvestmentHoldings,
-		updateInvestmentHolding
-	} from '$lib/investments/api';
-	import { ApiClientError } from '$lib/api/http';
-	import type { InvestmentAccount, InvestmentHolding } from '$lib/contracts/investments';
+	import type { InvestmentAccount, InvestmentHolding } from '$lib/schema/investments';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -183,15 +176,17 @@
 	}
 
 	function toErrorMessage(error: unknown, fallback: string): string {
-		if (error instanceof ApiClientError) return error.message;
-		if (error instanceof Error) return error.message;
-		return fallback;
+		return toUserMessage(error, fallback);
+	}
+
+	function apiRun(work: (client: any) => any): Promise<any> {
+		return runUiEffect(withApiClient(fetch, work));
 	}
 
 	async function refreshPortfolio(): Promise<void> {
 		const [nextAccounts, nextHoldings] = await Promise.all([
-			fetchInvestmentAccounts(),
-			fetchInvestmentHoldings()
+			apiRun((client) => client.investments.listInvestmentAccounts()),
+			apiRun((client) => client.investments.listInvestmentHoldings())
 		]);
 		accounts = nextAccounts;
 		holdings = nextHoldings;
@@ -247,27 +242,36 @@
 		}
 		await runPortfolioMutation(async () => {
 			if (holdingDialogMode === 'add') {
-				await createInvestmentHolding({
-					accountId: defaultAccountId,
-					name: dialogHoldingName.trim(),
-					currentValue: dialogHoldingValue,
-					allocationPercent: dialogHoldingAllocation,
-					units: dialogHoldingTrackerSource === 'manual' ? null : dialogHoldingUnits,
-					trackerSource: dialogHoldingTrackerSource,
-					trackerUrl: dialogHoldingTrackerUrl.trim() || null,
-					sortOrder: dialogHoldingSortOrder
-				});
+				await apiRun((client) =>
+					client.investments.createInvestmentHolding({
+						payload: {
+							accountId: defaultAccountId,
+							name: dialogHoldingName.trim(),
+							currentValue: dialogHoldingValue,
+							allocationPercent: dialogHoldingAllocation,
+							units: dialogHoldingTrackerSource === 'manual' ? null : dialogHoldingUnits,
+							trackerSource: dialogHoldingTrackerSource,
+							trackerUrl: dialogHoldingTrackerUrl.trim() || null,
+							sortOrder: dialogHoldingSortOrder
+						}
+					})
+				);
 			} else if (editingHoldingId) {
-				await updateInvestmentHolding(editingHoldingId, {
-					accountId: defaultAccountId,
-					name: dialogHoldingName.trim(),
-					currentValue: dialogHoldingValue,
-					allocationPercent: dialogHoldingAllocation,
-					units: dialogHoldingTrackerSource === 'manual' ? null : dialogHoldingUnits,
-					trackerSource: dialogHoldingTrackerSource,
-					trackerUrl: dialogHoldingTrackerUrl.trim() || null,
-					sortOrder: dialogHoldingSortOrder
-				});
+				await apiRun((client) =>
+					client.investments.updateInvestmentHolding({
+						path: { holdingId: editingHoldingId },
+						payload: {
+							accountId: defaultAccountId,
+							name: dialogHoldingName.trim(),
+							currentValue: dialogHoldingValue,
+							allocationPercent: dialogHoldingAllocation,
+							units: dialogHoldingTrackerSource === 'manual' ? null : dialogHoldingUnits,
+							trackerSource: dialogHoldingTrackerSource,
+							trackerUrl: dialogHoldingTrackerUrl.trim() || null,
+							sortOrder: dialogHoldingSortOrder
+						}
+					})
+				);
 			}
 			await refreshPortfolio();
 			holdingDialogOpen = false;
@@ -277,14 +281,19 @@
 	async function handleDeleteHolding(holdingId: string): Promise<void> {
 		if (!confirm('Delete this holding?')) return;
 		await runPortfolioMutation(async () => {
-			await deleteInvestmentHolding(holdingId);
+			await apiRun((client) =>
+				client.investments.deleteInvestmentHolding({
+					path: { holdingId }
+				})
+			);
 			await refreshPortfolio();
 		}, 'Failed to delete holding');
 	}
 
 	async function handleRefreshTrackedPrices(): Promise<void> {
 		await runPortfolioMutation(async () => {
-			holdings = await refreshTrackedInvestmentHoldings();
+			const report = await apiRun((client) => client.investments.refreshTrackedInvestmentHoldings());
+			holdings = report.holdings;
 		}, 'Failed to refresh tracked holdings');
 	}
 
@@ -339,12 +348,16 @@
 		profileSavePending = true;
 		profileSaveMessage = null;
 		try {
-			await updateFinancialProfile({
-				monthlySalary,
-				salaryGrowth,
-				municipalTaxRate: kommunalskatt,
-				savingsShareOfRaise
-			});
+			await apiRun((client) =>
+				client.finance.updateFinancialProfile({
+					payload: {
+						monthlySalary,
+						salaryGrowth,
+						municipalTaxRate: kommunalskatt,
+						savingsShareOfRaise
+					}
+				})
+			);
 			profileSaveMessage = 'Income profile saved';
 		} catch (error) {
 			profileSaveMessage = toErrorMessage(error, 'Failed to save income profile');

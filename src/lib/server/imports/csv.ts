@@ -1,4 +1,4 @@
-import { ApiError } from '../http.ts';
+import { validationError } from '$lib/effect/errors';
 
 export interface ParsedNordeaCsvRow {
 	bookingDate: string;
@@ -32,7 +32,7 @@ function parseSwedishNumber(raw: string): number {
 	const normalized = raw.replace(/\s+/g, '').replace(/\./g, '').replace(',', '.');
 	const parsed = Number(normalized);
 	if (!Number.isFinite(parsed)) {
-		throw new ApiError(400, 'INVALID_CSV_FORMAT', `Invalid number value: ${raw}`);
+		throw validationError(`Invalid number value: ${raw}`, undefined, 'INVALID_CSV_FORMAT');
 	}
 
 	return parsed;
@@ -49,7 +49,7 @@ function normalizeNullableText(value: string | undefined): string | null {
 
 function parseDate(raw: string): string {
 	if (!/^\d{4}\/\d{2}\/\d{2}$/.test(raw)) {
-		throw new ApiError(400, 'INVALID_CSV_FORMAT', `Invalid date format: ${raw}`);
+		throw validationError(`Invalid date format: ${raw}`, undefined, 'INVALID_CSV_FORMAT');
 	}
 
 	return raw.replace(/\//g, '-');
@@ -63,7 +63,11 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 		.filter((line) => line.length > 0);
 
 	if (lines.length < 2) {
-		throw new ApiError(400, 'INVALID_CSV_FORMAT', 'CSV file must contain header and at least one row');
+		throw validationError(
+			'CSV file must contain header and at least one row',
+			undefined,
+			'INVALID_CSV_FORMAT'
+		);
 	}
 
 	const headers = splitSemicolonLine(lines[0]);
@@ -74,7 +78,11 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 
 	for (const required of REQUIRED_HEADERS) {
 		if (!headerIndexByName.has(required)) {
-			throw new ApiError(400, 'INVALID_CSV_FORMAT', `Missing required CSV header: ${required}`);
+			throw validationError(
+				`Missing required CSV header: ${required}`,
+				undefined,
+				'INVALID_CSV_FORMAT'
+			);
 		}
 	}
 
@@ -92,10 +100,10 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 		const line = lines[lineIndex];
 		const columns = splitSemicolonLine(line);
 		if (columns.length < headers.length) {
-			throw new ApiError(
-				400,
-				'INVALID_CSV_FORMAT',
-				`Row ${lineIndex + 1} has fewer columns than the header`
+			throw validationError(
+				`Row ${lineIndex + 1} has fewer columns than the header`,
+				undefined,
+				'INVALID_CSV_FORMAT'
 			);
 		}
 
@@ -104,10 +112,10 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 		const rubricRaw = columns[rubricIndex] ?? '';
 
 		if (bookingDateRaw.trim().length === 0 || amountRaw.trim().length === 0 || rubricRaw.trim().length === 0) {
-			throw new ApiError(
-				400,
-				'INVALID_CSV_FORMAT',
-				`Row ${lineIndex + 1} is missing required values`
+			throw validationError(
+				`Row ${lineIndex + 1} is missing required values`,
+				undefined,
+				'INVALID_CSV_FORMAT'
 			);
 		}
 

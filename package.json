@@ -36,7 +36,10 @@
 		"vite": "8.0.0"
 	},
 	"dependencies": {
+		"@effect/platform": "^0.94.5",
+		"@effect/platform-bun": "^0.87.1",
 		"chart.js": "^4.5.1",
+		"effect": "^3.19.19",
 		"zod": "^4.3.6"
 	}
 }

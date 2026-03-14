@@ -1,21 +1,24 @@
 import type { PageLoad } from './$types';
+import * as Effect from 'effect/Effect';
 
-import { createLoansApi } from '$lib/loans/api';
-import { createWishlistApi } from '$lib/wishlist/api';
+import { withApiClient } from '$lib/api/client';
+import { runUiEffect } from '$lib/effect/runtime/browser';
 
-export const load: PageLoad = async ({ fetch }) => {
-	const wishlistApi = createWishlistApi(fetch);
-	const loansApi = createLoansApi(fetch);
-
-	const [items, loans, categories] = await Promise.all([
-		wishlistApi.fetchItems().catch(() => []),
-		loansApi.fetchLoans().catch(() => []),
-		wishlistApi.fetchCategories().catch(() => [])
-	]);
-
-	return {
-		items,
-		loans,
-		categories
-	};
+export const load: PageLoad = async ({ fetch, url }) => {
+	return runUiEffect(
+		withApiClient(fetch, url.origin, (client) =>
+			Effect.all({
+				items: client.wishlist
+					.listWishlistItems({ urlParams: {} })
+					.pipe(Effect.catchAll(() => Effect.succeed([]))),
+				loans: client.loans
+					.listLoans({ urlParams: {} })
+					.pipe(Effect.catchAll(() => Effect.succeed([]))),
+				categories: client.wishlist
+					.listWishlistCategories()
+					.pipe(Effect.catchAll(() => Effect.succeed([])))
+			})
+		),
+		fetch
+	);
 };

@@ -6,9 +6,9 @@ import { orm } from '$lib/server/drizzle/client';
 import { loans } from '$lib/server/drizzle/schema';
 import { ensureSchema } from '$lib/server/schema';
 import type {
-	CreateLoanInput,
 	ListLoansQuery,
 	Loan,
+	LoanStatus,
 	UpdateLoanInput
 } from '$lib/server/loans/types';
 
@@ -50,7 +50,11 @@ export function getLoanById(loanId: string): Loan | null {
 	return row ?? null;
 }
 
-export function createLoan(input: CreateLoanInput): Loan {
+export function createLoan(
+	input: Omit<Loan, 'id' | 'createdAt' | 'updatedAt'> & {
+		status: LoanStatus;
+	}
+): Loan {
 	ensureReady();
 
 	const id = randomUUID();

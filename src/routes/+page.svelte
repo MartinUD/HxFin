@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { withApiClient } from '$lib/api/client';
 	import type { PageData } from './$types';
 	import { calculate } from '$lib/calculator';
 	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
 	import ResultsPanel from '$lib/components/fire/ResultsPanel.svelte';
-	import { updateFinancialProfile } from '$lib/finance/api';
-	import { ApiClientError } from '$lib/api/http';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 
 	interface Props {
 		data: PageData;
@@ -60,19 +61,21 @@
 		profileSaveMessage = null;
 
 		try {
-			await updateFinancialProfile({
-				monthlySalary,
-				salaryGrowth,
-				municipalTaxRate: kommunalskatt,
-				savingsShareOfRaise
-			});
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.finance.updateFinancialProfile({
+						payload: {
+							monthlySalary,
+							salaryGrowth,
+							municipalTaxRate: kommunalskatt,
+							savingsShareOfRaise
+						}
+					})
+				)
+			);
 			profileSaveMessage = 'Income profile saved';
 		} catch (error) {
-			if (error instanceof ApiClientError) {
-				profileSaveMessage = error.message;
-			} else {
-				profileSaveMessage = 'Failed to save income profile';
-			}
+			profileSaveMessage = toUserMessage(error, 'Failed to save income profile');
 		} finally {
 			profileSavePending = false;
 		}

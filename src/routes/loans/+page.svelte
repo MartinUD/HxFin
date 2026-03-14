@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { ApiClientError } from '$lib/api/http';
-	import type { CreateLoanInput, Loan, LoanDirection, LoanStatus } from '$lib/contracts/loans';
+	import { withApiClient } from '$lib/api/client';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatLocalizedNumber } from '$lib/finance/format';
-	import { createLoan, deleteLoan, fetchLoans, updateLoan } from '$lib/loans/api';
+	import type { CreateLoanInput, Loan, LoanDirection, LoanStatus } from '$lib/schema/loans';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -177,13 +178,15 @@
 	}
 
 	function toErrorMessage(error: unknown, fallbackMessage: string): string {
-		if (error instanceof ApiClientError) return error.message;
-		if (error instanceof Error) return error.message;
-		return fallbackMessage;
+		return toUserMessage(error, fallbackMessage);
+	}
+
+	function apiRun(work: (client: any) => any): Promise<any> {
+		return runUiEffect(withApiClient(fetch, work));
 	}
 
 	async function refreshLoans(): Promise<void> {
-		loans = await fetchLoans();
+		loans = await apiRun((client) => client.loans.listLoans());
 	}
 
 	async function runMutation(action: () => Promise<void>, fallbackMessage: string): Promise<void> {
@@ -245,9 +248,14 @@
 		await runMutation(async () => {
 			const payload = createPayloadFromForm();
 			if (dialogMode === 'add') {
-				await createLoan(payload);
+				await apiRun((client) => client.loans.createLoan({ payload }));
 			} else if (editingLoanId) {
-				await updateLoan(editingLoanId, payload);
+				await apiRun((client) =>
+					client.loans.updateLoan({
+						path: { loanId: editingLoanId },
+						payload
+					})
+				);
 			}
 
 			await refreshLoans();
@@ -259,7 +267,11 @@
 		if (!confirm('Delete this loan?')) return;
 
 		await runMutation(async () => {
-			await deleteLoan(loanId);
+			await apiRun((client) =>
+				client.loans.deleteLoan({
+					path: { loanId }
+				})
+			);
 			await refreshLoans();
 		}, 'Failed to delete loan');
 	}

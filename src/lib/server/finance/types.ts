@@ -1,4 +1,4 @@
 export type {
 	FinancialProfile,
 	UpdateFinancialProfileInput
-} from '$lib/contracts/finance';
+} from '$lib/schema/finance';

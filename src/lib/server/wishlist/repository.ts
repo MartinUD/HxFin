@@ -7,7 +7,6 @@ import { wishlistCategories, wishlistItems } from '$lib/server/drizzle/schema';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	CreateWishlistCategoryInput,
-	CreateWishlistItemInput,
 	ListWishlistItemsQuery,
 	UpdateWishlistCategoryInput,
 	UpdateWishlistItemInput,
@@ -144,7 +143,9 @@ export function getWishlistItemById(itemId: string): WishlistItem | null {
 	return row ?? null;
 }
 
-export function createWishlistItem(input: CreateWishlistItemInput): WishlistItem {
+export function createWishlistItem(
+	input: Omit<WishlistItem, 'id' | 'createdAt' | 'updatedAt'>
+): WishlistItem {
 	ensureReady();
 
 	const id = randomUUID();

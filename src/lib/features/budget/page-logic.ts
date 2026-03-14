@@ -4,7 +4,7 @@ import type {
 	CreateRecurringCostInput,
 	RecurringCost,
 	UpdateRecurringCostInput
-} from '$lib/contracts/budget';
+} from '$lib/schema/budget';
 import { toMonthlyAmount } from '$lib/budget';
 
 export interface CostDialogFormState {

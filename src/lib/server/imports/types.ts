@@ -8,4 +8,4 @@ export type {
 	MerchantCategoryRule,
 	TransactionMatchMethod,
 	UploadCsvResult
-} from '$lib/contracts/imports';
+} from '$lib/schema/imports';

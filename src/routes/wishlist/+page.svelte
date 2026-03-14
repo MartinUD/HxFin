@@ -1,11 +1,17 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { ApiClientError } from '$lib/api/http';
-	import type { Loan } from '$lib/contracts/loans';
-	import type { CreateWishlistItemInput, WishlistCategory, WishlistFundingStrategy, WishlistItem, WishlistTargetAmountType } from '$lib/contracts/wishlist';
+	import { withApiClient } from '$lib/api/client';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
-	import { fetchLoans } from '$lib/loans/api';
-	import { createWishlistCategory, createWishlistItem, deleteWishlistCategory, deleteWishlistItem, fetchWishlistCategories, fetchWishlistItems, updateWishlistCategory, updateWishlistItem } from '$lib/wishlist/api';
+	import type { Loan } from '$lib/schema/loans';
+	import type {
+		CreateWishlistItemInput,
+		WishlistCategory,
+		WishlistFundingStrategy,
+		WishlistItem,
+		WishlistTargetAmountType
+	} from '$lib/schema/wishlist';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -166,13 +172,19 @@
 		return loan ? `${loan.counterparty} (${loan.status})` : 'Missing loan';
 	}
 	function toErrorMessage(error: unknown, fallback: string): string {
-		if (error instanceof ApiClientError) return error.message;
-		if (error instanceof Error) return error.message;
-		return fallback;
+		return toUserMessage(error, fallback);
+	}
+
+	function apiRun(work: (client: any) => any): Promise<any> {
+		return runUiEffect(withApiClient(fetch, work));
 	}
 
 	async function refreshData(): Promise<void> {
-		const [nextItems, nextLoans, nextCategories] = await Promise.all([fetchWishlistItems(), fetchLoans(), fetchWishlistCategories()]);
+		const [nextItems, nextLoans, nextCategories] = await Promise.all([
+			apiRun((client) => client.wishlist.listWishlistItems()),
+			apiRun((client) => client.loans.listLoans()),
+			apiRun((client) => client.wishlist.listWishlistCategories())
+		]);
 		items = nextItems;
 		loans = nextLoans;
 		categories = nextCategories;
@@ -217,20 +229,42 @@
 		if (!formName.trim() || formTargetAmount < 0) return;
 		await runMutation(async () => {
 			const payload = buildPayload();
-			if (dialogMode === 'add') await createWishlistItem(payload);
-			else if (editingItemId) await updateWishlistItem(editingItemId, payload);
+			if (dialogMode === 'add') {
+				await apiRun((client) => client.wishlist.createWishlistItem({ payload }));
+			} else if (editingItemId) {
+				await apiRun((client) =>
+					client.wishlist.updateWishlistItem({
+						path: { itemId: editingItemId },
+						payload
+					})
+				);
+			}
 			await refreshData();
 			dialogOpen = false;
 		}, 'Failed to save wishlist item');
 	}
 	async function handleDelete(itemId: string): Promise<void> {
 		if (!confirm('Delete this wishlist item?')) return;
-		await runMutation(async () => { await deleteWishlistItem(itemId); await refreshData(); }, 'Failed to delete wishlist item');
+		await runMutation(async () => {
+			await apiRun((client) =>
+				client.wishlist.deleteWishlistItem({
+					path: { itemId }
+				})
+			);
+			await refreshData();
+		}, 'Failed to delete wishlist item');
 	}
 	async function handleAddCategory(): Promise<void> {
 		if (!newCategoryName.trim()) return;
 		await runMutation(async () => {
-			const category = await createWishlistCategory({ name: newCategoryName.trim(), description: newCategoryDescription.trim() || null });
+			const category = await apiRun((client) =>
+				client.wishlist.createWishlistCategory({
+					payload: {
+						name: newCategoryName.trim(),
+						description: newCategoryDescription.trim() || null
+					}
+				})
+			);
 			await refreshData();
 			formCategoryId = category.id;
 			addingCategory = false;
@@ -240,7 +274,15 @@
 		if (!editingCategoryId || !editCategoryName.trim()) return;
 		const categoryId = editingCategoryId;
 		await runMutation(async () => {
-			await updateWishlistCategory(categoryId, { name: editCategoryName.trim(), description: editCategoryDescription.trim() || null });
+			await apiRun((client) =>
+				client.wishlist.updateWishlistCategory({
+					path: { categoryId },
+					payload: {
+						name: editCategoryName.trim(),
+						description: editCategoryDescription.trim() || null
+					}
+				})
+			);
 			await refreshData();
 			editingCategoryId = null;
 		}, 'Failed to update wishlist category');
@@ -248,7 +290,11 @@
 	async function handleDeleteCategory(categoryId: string): Promise<void> {
 		if (!confirm('Delete this category? Existing items will lose their category.')) return;
 		await runMutation(async () => {
-			await deleteWishlistCategory(categoryId);
+			await apiRun((client) =>
+				client.wishlist.deleteWishlistCategory({
+					path: { categoryId }
+				})
+			);
 			if (selectedCategoryFilter === categoryId) selectedCategoryFilter = 'all';
 			await refreshData();
 		}, 'Failed to delete wishlist category');

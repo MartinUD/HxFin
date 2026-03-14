@@ -1,27 +1,32 @@
 import type { PageLoad } from './$types';
 
-import { DEFAULT_FINANCIAL_PROFILE_INPUT } from '$lib/contracts/finance';
-import { createFinanceApi } from '$lib/finance/api';
+import * as Effect from 'effect/Effect';
 
-export const load: PageLoad = async ({ fetch }) => {
-	const api = createFinanceApi(fetch);
+import { withApiClient } from '$lib/api/client';
+import { runUiEffect } from '$lib/effect/runtime/browser';
+import { DEFAULT_FINANCIAL_PROFILE_INPUT } from '$lib/schema/finance';
 
-	try {
-		const profile = await api.fetchFinancialProfile();
-		return { profile };
-	} catch {
-		// Keep the calculator usable even if profile fetch fails.
-		return {
-			profile: {
-				id: 'default',
-				monthlySalary: DEFAULT_FINANCIAL_PROFILE_INPUT.monthlySalary,
-				salaryGrowth: DEFAULT_FINANCIAL_PROFILE_INPUT.salaryGrowth,
-				municipalTaxRate: DEFAULT_FINANCIAL_PROFILE_INPUT.municipalTaxRate,
-				savingsShareOfRaise: DEFAULT_FINANCIAL_PROFILE_INPUT.savingsShareOfRaise,
-				currency: DEFAULT_FINANCIAL_PROFILE_INPUT.currency,
-				createdAt: '',
-				updatedAt: ''
-			}
-		};
-	}
+export const load: PageLoad = async ({ fetch, url }) => {
+	return runUiEffect(
+		withApiClient(fetch, url.origin, (client) =>
+			client.finance.getFinancialProfile().pipe(
+				Effect.map((profile) => ({ profile })),
+				Effect.catchAll(() =>
+					Effect.succeed({
+						profile: {
+							id: 'default',
+							monthlySalary: DEFAULT_FINANCIAL_PROFILE_INPUT.monthlySalary,
+							salaryGrowth: DEFAULT_FINANCIAL_PROFILE_INPUT.salaryGrowth,
+							municipalTaxRate: DEFAULT_FINANCIAL_PROFILE_INPUT.municipalTaxRate,
+							savingsShareOfRaise: DEFAULT_FINANCIAL_PROFILE_INPUT.savingsShareOfRaise,
+							currency: DEFAULT_FINANCIAL_PROFILE_INPUT.currency,
+							createdAt: '',
+							updatedAt: ''
+						}
+					})
+				)
+			)
+		),
+		fetch
+	);
 };

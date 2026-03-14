@@ -1,15 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { BudgetCategory } from '$lib/contracts/budget';
-	import type { ImportBatch, ImportedTransaction, UploadCsvResult } from '$lib/contracts/imports';
-	import { ApiClientError } from '$lib/api/http';
-	import {
-		assignImportTransactionCategory,
-		fetchImportBatches,
-		fetchReviewTransactions,
-		uploadImportCsv
-	} from '$lib/imports/api';
+	import { withApiClient } from '$lib/api/client';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
+	import type { BudgetCategory } from '$lib/schema/budget';
+	import type { ImportBatch, ImportedTransaction, UploadCsvResult } from '$lib/schema/imports';
 	import { Button } from '$lib/components/ui/button';
 	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Alert from '$lib/components/ui/alert';
@@ -110,15 +106,11 @@
 	}
 
 	function toErrorMessage(error: unknown, fallbackMessage: string): string {
-		if (error instanceof ApiClientError) {
-			return error.message;
-		}
+		return toUserMessage(error, fallbackMessage);
+	}
 
-		if (error instanceof Error) {
-			return error.message;
-		}
-
-		return fallbackMessage;
+	function apiRun(work: (client: any) => any): Promise<any> {
+		return runUiEffect(withApiClient(fetch, work));
 	}
 
 	function onFileChange(event: Event): void {
@@ -129,8 +121,15 @@
 	async function refreshImportData(): Promise<void> {
 		const batchFilter = selectedBatchId !== 'all' ? selectedBatchId : undefined;
 		const [nextBatches, nextReviewTransactions] = await Promise.all([
-			fetchImportBatches({ limit: 30 }),
-			fetchReviewTransactions({ batchId: batchFilter, limit: 300 })
+			apiRun((client) => client.imports.listImportBatches({ urlParams: { limit: 30 } })),
+			apiRun((client) =>
+				client.imports.listReviewTransactions({
+					urlParams: {
+						batchId: batchFilter,
+						limit: 300
+					}
+				})
+			)
 		]);
 
 		batches = nextBatches;
@@ -147,7 +146,17 @@
 		successMessage = null;
 
 		try {
-			const result = await uploadImportCsv(selectedFile);
+			const file = selectedFile;
+			const csvText = await file.text();
+			const result = await apiRun((client) =>
+				client.imports.uploadImportCsv({
+					payload: {
+						sourceName: file.name,
+						csvText,
+						importedAt: new Date().toISOString()
+					}
+				})
+			);
 			lastUploadResult = result;
 			selectedFile = null;
 			selectedBatchId = 'all';
@@ -190,10 +199,15 @@
 		successMessage = null;
 
 		try {
-			const updated = await assignImportTransactionCategory(transactionId, {
-				categoryId,
-				saveRule
-			});
+			const updated = await apiRun((client) =>
+				client.imports.assignImportTransactionCategory({
+					path: { transactionId },
+					payload: {
+						categoryId,
+						saveRule
+					}
+				})
+			);
 
 			reviewTransactions = reviewTransactions.filter((tx) => tx.id !== transactionId);
 			delete selectedCategoryByTransactionId[transactionId];

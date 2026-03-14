@@ -3,7 +3,7 @@
 	import CategoryBadge from '$lib/components/budget/CategoryBadge.svelte';
 	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Table from '$lib/components/ui/table';
-	import type { BudgetCategory, RecurringCost } from '$lib/contracts/budget';
+	import type { BudgetCategory, RecurringCost } from '$lib/schema/budget';
 
 	interface Props {
 		filteredCosts: RecurringCost[];

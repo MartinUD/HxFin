@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 
-import { DEFAULT_FINANCIAL_PROFILE_INPUT } from '$lib/contracts/finance';
+import { DEFAULT_FINANCIAL_PROFILE_INPUT } from '$lib/schema/finance';
 import { orm } from '$lib/server/drizzle/client';
 import { financialProfile } from '$lib/server/drizzle/schema';
 import { ensureSchema } from '$lib/server/schema';

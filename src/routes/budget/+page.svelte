@@ -1,18 +1,14 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { BudgetCategory, RecurringCost } from '$lib/budget';
+	import { withApiClient } from '$lib/api/client';
 	import {
-		createCategory,
-		updateCategory,
-		deleteCategory,
-		createCost,
-		updateCost,
-		deleteCost,
 		formatCurrency,
 		PERIOD_OPTIONS,
 		COST_KIND_OPTIONS,
 		DEFAULT_COLOR
 	} from '$lib/budget';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { invalidateAll } from '$app/navigation';
 	import ColorPicker from '$lib/components/budget/ColorPicker.svelte';
 	import CostsTable from '$lib/components/budget/CostsTable.svelte';
@@ -28,6 +24,7 @@
 		getFilteredMonthlyTotal,
 		toBudgetErrorMessage
 	} from '$lib/features/budget/page-logic';
+	import type { BudgetCategory, RecurringCost } from '$lib/schema/budget';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -133,7 +130,7 @@
 		try {
 			await action();
 		} catch (e) {
-			errorMessage = toBudgetErrorMessage(e, fallbackMessage);
+			errorMessage = toBudgetErrorMessage(e, fallbackMessage) ?? toUserMessage(e, fallbackMessage);
 		} finally {
 			submitting = false;
 		}
@@ -142,11 +139,17 @@
 	async function handleAddCategory() {
 		if (!newCatName.trim()) return;
 		await runMutation(async () => {
-			await createCategory({
-				name: newCatName.trim(),
-				description: newCatDescription.trim() || null,
-				color: newCatColor
-			});
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.budget.createBudgetCategory({
+						payload: {
+							name: newCatName.trim(),
+							description: newCatDescription.trim() || null,
+							color: newCatColor
+						}
+					})
+				)
+			);
 			addingCategory = false;
 			await invalidateAll();
 		}, 'Failed to add category');
@@ -156,11 +159,18 @@
 		if (!editingCategoryId || !editCatName.trim()) return;
 		const categoryId = editingCategoryId;
 		await runMutation(async () => {
-			await updateCategory(categoryId, {
-				name: editCatName.trim(),
-				description: editCatDescription.trim() || null,
-				color: editCatColor
-			});
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.budget.updateBudgetCategory({
+						path: { categoryId },
+						payload: {
+							name: editCatName.trim(),
+							description: editCatDescription.trim() || null,
+							color: editCatColor
+						}
+					})
+				)
+			);
 			editingCategoryId = null;
 			await invalidateAll();
 		}, 'Failed to update category');
@@ -169,7 +179,13 @@
 	async function handleDeleteCategory(id: string) {
 		if (!confirm('Delete this category and all its costs?')) return;
 		await runMutation(async () => {
-			await deleteCategory(id);
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.budget.deleteBudgetCategory({
+						path: { categoryId: id }
+					})
+				)
+			);
 			if (selectedCategoryFilter === id) selectedCategoryFilter = 'all';
 			await invalidateAll();
 		}, 'Failed to delete category');
@@ -178,17 +194,21 @@
 	async function handleAddCost() {
 		if (!dialogCostName.trim() || !dialogCostCategoryId || dialogCostAmount <= 0) return;
 		await runMutation(async () => {
-			await createCost(
-				buildCreateCostInput({
-					id: '',
-					name: dialogCostName,
-					amount: dialogCostAmount,
-					period: dialogCostPeriod,
-					kind: dialogCostKind,
-					categoryId: dialogCostCategoryId,
-					isEssential: dialogCostIsEssential,
-					isActive: dialogCostIsActive
-				})
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.budget.createRecurringCost({
+						payload: buildCreateCostInput({
+							id: '',
+							name: dialogCostName,
+							amount: dialogCostAmount,
+							period: dialogCostPeriod,
+							kind: dialogCostKind,
+							categoryId: dialogCostCategoryId,
+							isEssential: dialogCostIsEssential,
+							isActive: dialogCostIsActive
+						})
+					})
+				)
 			);
 			costDialogOpen = false;
 			await invalidateAll();
@@ -198,18 +218,22 @@
 	async function handleSaveEditCost() {
 		if (!dialogCostId || !dialogCostName.trim() || dialogCostAmount <= 0) return;
 		await runMutation(async () => {
-			await updateCost(
-				dialogCostId,
-				buildUpdateCostInput({
-					id: dialogCostId,
-					name: dialogCostName,
-					amount: dialogCostAmount,
-					period: dialogCostPeriod,
-					kind: dialogCostKind,
-					categoryId: dialogCostCategoryId,
-					isEssential: dialogCostIsEssential,
-					isActive: dialogCostIsActive
-				})
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.budget.updateRecurringCost({
+						path: { costId: dialogCostId },
+						payload: buildUpdateCostInput({
+							id: dialogCostId,
+							name: dialogCostName,
+							amount: dialogCostAmount,
+							period: dialogCostPeriod,
+							kind: dialogCostKind,
+							categoryId: dialogCostCategoryId,
+							isEssential: dialogCostIsEssential,
+							isActive: dialogCostIsActive
+						})
+					})
+				)
 			);
 			costDialogOpen = false;
 			await invalidateAll();
@@ -219,7 +243,13 @@
 	async function handleDeleteCost(id: string) {
 		if (!confirm('Delete this recurring cost?')) return;
 		await runMutation(async () => {
-			await deleteCost(id);
+			await runUiEffect(
+				withApiClient(fetch, (client) =>
+					client.budget.deleteRecurringCost({
+						path: { costId: id }
+					})
+				)
+			);
 			await invalidateAll();
 		}, 'Failed to delete cost');
 	}

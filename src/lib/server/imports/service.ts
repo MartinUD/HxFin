@@ -1,15 +1,29 @@
-import { ApiError } from '$lib/server/http';
+import * as Effect from 'effect/Effect';
+
+import { notFoundError, persistenceError } from '$lib/effect/errors';
+import { getCategoryById } from '$lib/server/budget/repository';
 import { parseNordeaTransactionsCsv } from '$lib/server/imports/csv';
 import { normalizeMerchantDescription } from '$lib/server/imports/normalization';
 import {
 	createImportBatch,
 	findMostRecentCategorizedTransactionByNormalizedDescription,
+	getTransactionById,
 	getMerchantCategoryRuleByNormalizedDescription,
 	insertImportedTransaction,
+	listImportBatches,
+	listReviewTransactions,
+	updateTransactionCategory,
 	updateImportBatchStatus,
+	upsertMerchantCategoryRule,
 	withDatabaseTransaction
 } from '$lib/server/imports/repository';
-import type { UploadCsvResult } from '$lib/server/imports/types';
+import type {
+	AssignTransactionCategoryInput,
+	ImportedTransaction,
+	ListImportBatchesQuery,
+	ListReviewTransactionsQuery,
+	UploadCsvResult
+} from '$lib/server/imports/types';
 
 export function importNordeaCsv(input: {
 	sourceName: string;
@@ -18,7 +32,7 @@ export function importNordeaCsv(input: {
 }): UploadCsvResult {
 	const rows = parseNordeaTransactionsCsv(input.csvText);
 	if (rows.length === 0) {
-		throw new ApiError(400, 'INVALID_CSV_FORMAT', 'CSV file did not include any transactions');
+		throw persistenceError('CSV file did not include any transactions', 'INVALID_CSV_FORMAT');
 	}
 
 	const importedAt = input.importedAt ?? new Date().toISOString();
@@ -94,7 +108,7 @@ export function importNordeaCsv(input: {
 
 		const completedBatch = updateImportBatchStatus(batch.id, 'completed');
 		if (!completedBatch) {
-			throw new Error('Failed to update import batch status');
+			throw persistenceError('Failed to update import batch status');
 		}
 
 		return {
@@ -106,3 +120,67 @@ export function importNordeaCsv(input: {
 		throw error;
 	}
 }
+
+export const listImportBatchesEffect = (query: ListImportBatchesQuery = {}) =>
+	Effect.try({
+		try: () => listImportBatches(query),
+		catch: () => persistenceError('Failed to load import batches')
+	});
+
+export const listReviewTransactionsEffect = (query: ListReviewTransactionsQuery = {}) =>
+	Effect.try({
+		try: () => listReviewTransactions(query),
+		catch: () => persistenceError('Failed to load review transactions')
+	});
+
+export const uploadImportCsvEffect = (input: {
+	sourceName: string;
+	csvText: string;
+	importedAt?: string;
+}) =>
+	Effect.try({
+		try: () => importNordeaCsv(input),
+		catch: (error) =>
+			error && typeof error === 'object' && '_tag' in error
+				? (error as never)
+				: persistenceError('Failed to import CSV')
+	});
+
+export const assignTransactionCategoryEffect = (
+	transactionId: string,
+	input: AssignTransactionCategoryInput
+) =>
+	Effect.try({
+		try: () => {
+			const existing = getTransactionById(transactionId);
+			if (!existing) {
+				throw notFoundError('Transaction was not found', 'TRANSACTION_NOT_FOUND');
+			}
+
+			if (input.categoryId && !getCategoryById(input.categoryId)) {
+				throw notFoundError('Category was not found', 'CATEGORY_NOT_FOUND');
+			}
+
+			const updated = updateTransactionCategory(transactionId, {
+				categoryId: input.categoryId,
+				matchMethod: input.categoryId ? 'manual' : 'needs_review'
+			});
+			if (!updated) {
+				throw notFoundError('Transaction was not found', 'TRANSACTION_NOT_FOUND');
+			}
+
+			if (input.saveRule && input.categoryId) {
+				upsertMerchantCategoryRule({
+					normalizedDescription: updated.normalizedDescription,
+					categoryId: input.categoryId,
+					confidence: 1
+				});
+			}
+
+			return updated;
+		},
+		catch: (error) =>
+			error && typeof error === 'object' && '_tag' in error
+				? (error as never)
+				: persistenceError('Failed to assign transaction category')
+	});

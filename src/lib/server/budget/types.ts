@@ -11,4 +11,4 @@ export type {
 	SummaryQuery,
 	UpdateCategoryInput,
 	UpdateRecurringCostInput
-} from '$lib/contracts/budget';
+} from '$lib/schema/budget';

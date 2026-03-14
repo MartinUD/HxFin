@@ -1,21 +1,24 @@
 import type { PageLoad } from './$types';
+import * as Effect from 'effect/Effect';
 
-import { createBudgetApi } from '$lib/budget';
-import { createImportsApi } from '$lib/imports/api';
+import { withApiClient } from '$lib/api/client';
+import { runUiEffect } from '$lib/effect/runtime/browser';
 
-export const load: PageLoad = async ({ fetch }) => {
-	const budgetApi = createBudgetApi(fetch);
-	const importsApi = createImportsApi(fetch);
-
-	const [categories, batches, reviewTransactions] = await Promise.all([
-		budgetApi.fetchCategories().catch(() => []),
-		importsApi.fetchBatches({ limit: 30 }).catch(() => []),
-		importsApi.fetchReviewTransactions({ limit: 300 }).catch(() => [])
-	]);
-
-	return {
-		categories,
-		batches,
-		reviewTransactions
-	};
+export const load: PageLoad = async ({ fetch, url }) => {
+	return runUiEffect(
+		withApiClient(fetch, url.origin, (client) =>
+			Effect.all({
+				categories: client.budget
+					.listBudgetCategories()
+					.pipe(Effect.catchAll(() => Effect.succeed([]))),
+				batches: client.imports
+					.listImportBatches({ urlParams: { limit: 30 } })
+					.pipe(Effect.catchAll(() => Effect.succeed([]))),
+				reviewTransactions: client.imports
+					.listReviewTransactions({ urlParams: { limit: 300 } })
+					.pipe(Effect.catchAll(() => Effect.succeed([])))
+			})
+		),
+		fetch
+	);
 };

@@ -8,4 +8,4 @@ export type {
 	WishlistFundingStrategy,
 	WishlistItem,
 	WishlistTargetAmountType
-} from '$lib/contracts/wishlist';
+} from '$lib/schema/wishlist';
