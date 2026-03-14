@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import db from '$lib/server/db';
+import db, { type SqlParams } from '$lib/server/db';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	CreateInvestmentAccountInput,
@@ -180,7 +180,7 @@ export function updateInvestmentAccount(
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = { id: accountId };
+	const params: SqlParams = { id: accountId };
 
 	if (input.name !== undefined) {
 		fields.push('name = @name');
@@ -225,7 +225,7 @@ export function listInvestmentHoldings(query: ListInvestmentHoldingsQuery = {}):
 	ensureReady();
 
 	const whereClauses: string[] = [];
-	const params: Record<string, unknown> = {};
+	const params: SqlParams = {};
 
 	if (query.accountId) {
 		whereClauses.push('account_id = @accountId');
@@ -338,7 +338,7 @@ export function updateInvestmentHolding(
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = { id: holdingId };
+	const params: SqlParams = { id: holdingId };
 
 	if (input.accountId !== undefined) {
 		fields.push('account_id = @accountId');

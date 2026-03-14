@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import db from '$lib/server/db';
+import db, { type SqlParams } from '$lib/server/db';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	CreateWishlistCategoryInput,
@@ -138,7 +138,7 @@ export function updateWishlistCategory(
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = { id: categoryId };
+	const params: SqlParams = { id: categoryId };
 
 	if (input.name !== undefined) {
 		fields.push('name = @name');
@@ -173,7 +173,7 @@ export function listWishlistItems(query: ListWishlistItemsQuery = {}): WishlistI
 	ensureReady();
 
 	const whereClauses: string[] = [];
-	const params: Record<string, unknown> = {};
+	const params: SqlParams = {};
 
 	if (query.fundingStrategy) {
 		whereClauses.push('funding_strategy = @fundingStrategy');
@@ -309,7 +309,7 @@ export function updateWishlistItem(
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = { id: itemId };
+	const params: SqlParams = { id: itemId };
 
 	if (input.name !== undefined) {
 		fields.push('name = @name');

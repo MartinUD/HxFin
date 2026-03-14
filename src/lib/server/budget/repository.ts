@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import db from '$lib/server/db';
+import db, { type SqlParams } from '$lib/server/db';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	BudgetCategory,
@@ -140,7 +140,7 @@ export function updateCategory(
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = {
+	const params: SqlParams = {
 		id: categoryId
 	};
 
@@ -182,7 +182,7 @@ export function listRecurringCosts(query: ListRecurringCostsQuery = {}): Recurri
 	ensureReady();
 
 	const whereClauses: string[] = [];
-	const params: Record<string, unknown> = {};
+	const params: SqlParams = {};
 
 	if (!query.includeInactive) {
 		whereClauses.push('is_active = 1');
@@ -289,7 +289,7 @@ export function updateRecurringCost(
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = {
+	const params: SqlParams = {
 		id: costId
 	};
 

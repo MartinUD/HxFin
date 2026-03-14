@@ -1,4 +1,4 @@
-import db from '$lib/server/db';
+import db, { type SqlParams } from '$lib/server/db';
 import { DEFAULT_FINANCIAL_PROFILE_INPUT } from '$lib/contracts/finance';
 import { ensureSchema } from '$lib/server/schema';
 import type { FinancialProfile, UpdateFinancialProfileInput } from '$lib/server/finance/types';
@@ -105,7 +105,7 @@ export function updateFinancialProfile(input: UpdateFinancialProfileInput): Fina
 	ensureProfileExists();
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = { id: DEFAULT_PROFILE_ID };
+	const params: SqlParams = { id: DEFAULT_PROFILE_ID };
 
 	if (input.monthlySalary !== undefined) {
 		fields.push('monthly_salary = @monthlySalary');

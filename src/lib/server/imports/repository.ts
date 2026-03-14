@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import db from '$lib/server/db';
+import db, { type SqlParams } from '$lib/server/db';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	ImportBatch,
@@ -288,7 +288,7 @@ export function listReviewTransactions(
 	ensureReady();
 
 	const whereClauses = [`t.match_method = 'needs_review'`];
-	const params: Record<string, unknown> = {
+	const params: SqlParams = {
 		limit: query.limit ?? 200
 	};
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import db from '$lib/server/db';
+import db, { type SqlParams } from '$lib/server/db';
 import { ensureSchema } from '$lib/server/schema';
 import type {
 	CreateLoanInput,
@@ -53,7 +53,7 @@ export function listLoans(query: ListLoansQuery = {}): Loan[] {
 	ensureReady();
 
 	const whereClauses: string[] = [];
-	const params: Record<string, unknown> = {};
+	const params: SqlParams = {};
 
 	if (query.direction) {
 		whereClauses.push('direction = @direction');
@@ -182,7 +182,7 @@ export function updateLoan(loanId: string, input: UpdateLoanInput): Loan | null 
 	}
 
 	const fields: string[] = [];
-	const params: Record<string, unknown> = { id: loanId };
+	const params: SqlParams = { id: loanId };
 
 	if (input.direction !== undefined) {
 		fields.push('direction = @direction');

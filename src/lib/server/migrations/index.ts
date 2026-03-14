@@ -1,9 +1,9 @@
-import type Database from 'better-sqlite3';
+import type { AppDatabase } from '$lib/server/db';
 
 export interface Migration {
 	id: string;
 	description: string;
-	up: (db: Database.Database) => void;
+	up: (db: AppDatabase) => void;
 }
 
 export const migrations: Migration[] = [
