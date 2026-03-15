@@ -1,9 +1,8 @@
-import type { PageLoad } from './$types';
 import * as Effect from 'effect/Effect';
-
 import { withApiClient } from '$lib/api/client';
 import { runUiEffect } from '$lib/effect/runtime/browser';
 import { DEFAULT_FINANCIAL_PROFILE_INPUT } from '$lib/schema/finance';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, url }) => {
 	return runUiEffect(
@@ -19,18 +18,18 @@ export const load: PageLoad = async ({ fetch, url }) => {
 							savingsShareOfRaise: DEFAULT_FINANCIAL_PROFILE_INPUT.savingsShareOfRaise,
 							currency: DEFAULT_FINANCIAL_PROFILE_INPUT.currency,
 							createdAt: '',
-							updatedAt: ''
-						})
-					)
+							updatedAt: '',
+						}),
+					),
 				),
 				accounts: client.investments
 					.listInvestmentAccounts()
 					.pipe(Effect.catchAll(() => Effect.succeed([]))),
 				holdings: client.investments
 					.listInvestmentHoldings({ urlParams: {} })
-					.pipe(Effect.catchAll(() => Effect.succeed([])))
-			})
+					.pipe(Effect.catchAll(() => Effect.succeed([]))),
+			}),
 		),
-		fetch
+		fetch,
 	);
 };

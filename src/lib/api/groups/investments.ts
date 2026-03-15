@@ -11,42 +11,60 @@ import {
 	InvestmentRefreshReportSchema,
 	ListInvestmentHoldingsQuerySchema,
 	UpdateInvestmentAccountInputSchema,
-	UpdateInvestmentHoldingInputSchema
+	UpdateInvestmentHoldingInputSchema,
 } from '$lib/schema/investments';
 
 export const investmentsApiGroup = HttpApiGroup.make('investments')
-	.add(HttpApiEndpoint.get('listInvestmentAccounts', '/investments/accounts').addSuccess(Schema.Array(InvestmentAccountSchema)))
+	.add(
+		HttpApiEndpoint.get('listInvestmentAccounts', '/investments/accounts').addSuccess(
+			Schema.Array(InvestmentAccountSchema),
+		),
+	)
 	.add(
 		HttpApiEndpoint.post('createInvestmentAccount', '/investments/accounts')
 			.setPayload(CreateInvestmentAccountInputSchema)
-			.addSuccess(InvestmentAccountSchema, { status: 201 })
+			.addSuccess(InvestmentAccountSchema, { status: 201 }),
 	)
 	.add(
-		HttpApiEndpoint.patch('updateInvestmentAccount')`/investments/accounts/${HttpApiSchema.param('accountId', Schema.String)}`
+		HttpApiEndpoint.patch(
+			'updateInvestmentAccount',
+		)`/investments/accounts/${HttpApiSchema.param('accountId', Schema.String)}`
 			.setPayload(UpdateInvestmentAccountInputSchema)
-			.addSuccess(InvestmentAccountSchema)
+			.addSuccess(InvestmentAccountSchema),
 	)
 	.add(
-		HttpApiEndpoint.del('deleteInvestmentAccount')`/investments/accounts/${HttpApiSchema.param('accountId', Schema.String)}`
-			.addSuccess(HttpApiSchema.NoContent)
+		HttpApiEndpoint.del(
+			'deleteInvestmentAccount',
+		)`/investments/accounts/${HttpApiSchema.param('accountId', Schema.String)}`.addSuccess(
+			HttpApiSchema.NoContent,
+		),
 	)
 	.add(
 		HttpApiEndpoint.get('listInvestmentHoldings', '/investments/holdings')
 			.setUrlParams(ListInvestmentHoldingsQuerySchema)
-			.addSuccess(Schema.Array(InvestmentHoldingSchema))
+			.addSuccess(Schema.Array(InvestmentHoldingSchema)),
 	)
 	.add(
 		HttpApiEndpoint.post('createInvestmentHolding', '/investments/holdings')
 			.setPayload(CreateInvestmentHoldingInputSchema)
-			.addSuccess(InvestmentHoldingSchema, { status: 201 })
+			.addSuccess(InvestmentHoldingSchema, { status: 201 }),
 	)
 	.add(
-		HttpApiEndpoint.patch('updateInvestmentHolding')`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.String)}`
+		HttpApiEndpoint.patch(
+			'updateInvestmentHolding',
+		)`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.String)}`
 			.setPayload(UpdateInvestmentHoldingInputSchema)
-			.addSuccess(InvestmentHoldingSchema)
+			.addSuccess(InvestmentHoldingSchema),
 	)
 	.add(
-		HttpApiEndpoint.del('deleteInvestmentHolding')`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.String)}`
-			.addSuccess(HttpApiSchema.NoContent)
+		HttpApiEndpoint.del(
+			'deleteInvestmentHolding',
+		)`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.String)}`.addSuccess(
+			HttpApiSchema.NoContent,
+		),
 	)
-	.add(HttpApiEndpoint.post('refreshTrackedInvestmentHoldings', '/investments/refresh').addSuccess(InvestmentRefreshReportSchema));
+	.add(
+		HttpApiEndpoint.post('refreshTrackedInvestmentHoldings', '/investments/refresh').addSuccess(
+			InvestmentRefreshReportSchema,
+		),
+	);

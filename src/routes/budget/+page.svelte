@@ -1,18 +1,24 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { invalidateAll } from '$app/navigation';
 	import { withApiClient } from '$lib/api/client';
 	import {
-		formatCurrency,
-		PERIOD_OPTIONS,
 		COST_KIND_OPTIONS,
-		DEFAULT_COLOR
+		DEFAULT_COLOR, 
+		formatCurrency,
+		PERIOD_OPTIONS
 	} from '$lib/budget';
-	import { toUserMessage } from '$lib/effect/errors';
-	import { runUiEffect } from '$lib/effect/runtime/browser';
-	import { invalidateAll } from '$app/navigation';
 	import ColorPicker from '$lib/components/budget/ColorPicker.svelte';
 	import CostsTable from '$lib/components/budget/CostsTable.svelte';
 	import ToggleGroup from '$lib/components/ToggleGroup.svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import { toUserMessage } from '$lib/effect/errors';
+	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import {
 		buildCategoryMap,
 		buildCreateCostInput,
@@ -25,13 +31,7 @@
 		toBudgetErrorMessage
 	} from '$lib/features/budget/page-logic';
 	import type { BudgetCategory, RecurringCost } from '$lib/schema/budget';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Select from '$lib/components/ui/select';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Alert from '$lib/components/ui/alert';
+	import type { PageData } from './$types';
 
 	interface Props { data: PageData; }
 	let { data }: Props = $props();
@@ -311,7 +311,7 @@
 		<Alert.Root class="border-destructive/50 bg-destructive/10">
 			<Alert.Description class="flex items-center justify-between text-destructive">
 				{errorMessage}
-				<button onclick={() => (errorMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
+				<button type="button" onclick={() => (errorMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -493,14 +493,14 @@
 						</div>
 						<span class="cat-row-amount">{formatCurrency(summaryByCategory.get(cat.id) ?? 0)}/mo</span>
 						<div class="flex gap-1">
-							<button class="cat-action-btn" onclick={() => beginEditCategory(cat)} title="Edit" aria-label={`Edit category ${cat.name}`}>
-								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<button type="button" class="cat-action-btn" onclick={() => beginEditCategory(cat)} title="Edit" aria-label={`Edit category ${cat.name}`}>
+								<svg aria-hidden="true" focusable="false" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 									<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
 									<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
 								</svg>
 							</button>
-							<button class="cat-action-btn danger" onclick={() => handleDeleteCategory(cat.id)} title="Delete" aria-label={`Delete category ${cat.name}`}>
-								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<button type="button" class="cat-action-btn danger" onclick={() => handleDeleteCategory(cat.id)} title="Delete" aria-label={`Delete category ${cat.name}`}>
+								<svg aria-hidden="true" focusable="false" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 									<polyline points="3 6 5 6 21 6"/>
 									<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
 								</svg>
@@ -542,8 +542,8 @@
 				</div>
 			</div>
 		{:else}
-			<button class="add-cat-trigger" onclick={openAddCategory}>
-				<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+			<button type="button" class="add-cat-trigger" onclick={openAddCategory}>
+				<svg aria-hidden="true" focusable="false" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
 				</svg>
 				Add Category

@@ -1,24 +1,25 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import type * as Effect from 'effect/Effect';
 	import { browser } from '$app/environment';
-	import { withApiClient } from '$lib/api/client';
+	import { type ApiClient, withApiClient } from '$lib/api/client';
 	import { calculate } from '$lib/calculator';
+	import ResultsPanel from '$lib/components/fire/ResultsPanel.svelte';
+	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
+	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
-	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
-	import ResultsPanel from '$lib/components/fire/ResultsPanel.svelte';
 	import type { InvestmentAccount, InvestmentHolding } from '$lib/schema/investments';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Table from '$lib/components/ui/table';
-	import * as Select from '$lib/components/ui/select';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import type { PageData } from './$types';
 
 	interface Props {
 		data: PageData;
@@ -179,7 +180,7 @@
 		return toUserMessage(error, fallback);
 	}
 
-	function apiRun(work: (client: any) => any): Promise<any> {
+	function apiRun<A, E, R>(work: (client: ApiClient) => Effect.Effect<A, E, R>): Promise<A> {
 		return runUiEffect(withApiClient(fetch, work));
 	}
 
@@ -433,11 +434,13 @@
 			<h1 class="page-title">Investments</h1>
 			<div class="view-toggle" role="group" aria-label="Switch view">
 				<button
+					type="button"
 					class="toggle-btn"
 					class:active={view === 'portfolio'}
 					onclick={() => (view = 'portfolio')}
 				>Portfolio</button>
 				<button
+					type="button"
 					class="toggle-btn"
 					class:active={view === 'projections'}
 					onclick={() => (view = 'projections')}
@@ -446,9 +449,9 @@
 			{#if view === 'portfolio'}
 				<div class="topbar-divider" aria-hidden="true"></div>
 				<div class="platform-filter" role="group" aria-label="Filter holdings by platform">
-					<button class="platform-filter-btn" class:active={platformFilter === 'all'} onclick={() => (platformFilter = 'all')}>All</button>
-					<button class="platform-filter-btn" class:active={platformFilter === 'nordea'} onclick={() => (platformFilter = 'nordea')}>Nordea</button>
-					<button class="platform-filter-btn" class:active={platformFilter === 'avanza'} onclick={() => (platformFilter = 'avanza')}>Avanza</button>
+					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'all'} onclick={() => (platformFilter = 'all')}>All</button>
+					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'nordea'} onclick={() => (platformFilter = 'nordea')}>Nordea</button>
+					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'avanza'} onclick={() => (platformFilter = 'avanza')}>Avanza</button>
 				</div>
 			{/if}
 		</div>
@@ -488,7 +491,7 @@
 		<Alert.Root class="border-destructive/50 bg-destructive/10">
 			<Alert.Description class="flex items-center justify-between text-destructive text-xs">
 				{portfolioMessage}
-				<button onclick={() => (portfolioMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
+				<button type="button" onclick={() => (portfolioMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -546,6 +549,7 @@
 											<Table.Cell class="portfolio-cell">
 												<div class="holding-actions">
 													<button
+														type="button"
 														class="holding-action"
 														onclick={() => openEditHoldingDialog(holding)}
 														aria-label="Edit holding"
@@ -554,6 +558,7 @@
 														<PencilIcon class="holding-action-icon" size={12} strokeWidth={1.75} />
 													</button>
 													<button
+														type="button"
 														class="holding-action danger"
 														onclick={() => handleDeleteHolding(holding.id)}
 														aria-label="Delete holding"

@@ -7,22 +7,21 @@ import { normalizeMerchantDescription } from '$lib/server/imports/normalization'
 import {
 	createImportBatch,
 	findMostRecentCategorizedTransactionByNormalizedDescription,
-	getTransactionById,
 	getMerchantCategoryRuleByNormalizedDescription,
+	getTransactionById,
 	insertImportedTransaction,
 	listImportBatches,
 	listReviewTransactions,
-	updateTransactionCategory,
 	updateImportBatchStatus,
+	updateTransactionCategory,
 	upsertMerchantCategoryRule,
-	withDatabaseTransaction
+	withDatabaseTransaction,
 } from '$lib/server/imports/repository';
 import type {
 	AssignTransactionCategoryInput,
-	ImportedTransaction,
 	ListImportBatchesQuery,
 	ListReviewTransactionsQuery,
-	UploadCsvResult
+	UploadCsvResult,
 } from '$lib/server/imports/types';
 
 export function importNordeaCsv(input: {
@@ -40,14 +39,14 @@ export function importNordeaCsv(input: {
 		sourceName: input.sourceName,
 		importedAt,
 		rowCount: rows.length,
-		status: 'processing'
+		status: 'processing',
 	});
 
 	const summary = {
 		inserted: 0,
 		categorizedByRule: 0,
 		categorizedByHistory: 0,
-		needsReview: 0
+		needsReview: 0,
 	};
 
 	try {
@@ -99,7 +98,7 @@ export function importNordeaCsv(input: {
 					currency: row.currency,
 					categoryId,
 					matchMethod,
-					importBatchId: batch.id
+					importBatchId: batch.id,
 				});
 
 				summary.inserted += 1;
@@ -113,7 +112,7 @@ export function importNordeaCsv(input: {
 
 		return {
 			batch: completedBatch,
-			summary
+			summary,
 		};
 	} catch (error) {
 		updateImportBatchStatus(batch.id, 'failed');
@@ -124,13 +123,13 @@ export function importNordeaCsv(input: {
 export const listImportBatchesEffect = (query: ListImportBatchesQuery = {}) =>
 	Effect.try({
 		try: () => listImportBatches(query),
-		catch: () => persistenceError('Failed to load import batches')
+		catch: () => persistenceError('Failed to load import batches'),
 	});
 
 export const listReviewTransactionsEffect = (query: ListReviewTransactionsQuery = {}) =>
 	Effect.try({
 		try: () => listReviewTransactions(query),
-		catch: () => persistenceError('Failed to load review transactions')
+		catch: () => persistenceError('Failed to load review transactions'),
 	});
 
 export const uploadImportCsvEffect = (input: {
@@ -143,12 +142,12 @@ export const uploadImportCsvEffect = (input: {
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to import CSV')
+				: persistenceError('Failed to import CSV'),
 	});
 
 export const assignTransactionCategoryEffect = (
 	transactionId: string,
-	input: AssignTransactionCategoryInput
+	input: AssignTransactionCategoryInput,
 ) =>
 	Effect.try({
 		try: () => {
@@ -163,7 +162,7 @@ export const assignTransactionCategoryEffect = (
 
 			const updated = updateTransactionCategory(transactionId, {
 				categoryId: input.categoryId,
-				matchMethod: input.categoryId ? 'manual' : 'needs_review'
+				matchMethod: input.categoryId ? 'manual' : 'needs_review',
 			});
 			if (!updated) {
 				throw notFoundError('Transaction was not found', 'TRANSACTION_NOT_FOUND');
@@ -173,7 +172,7 @@ export const assignTransactionCategoryEffect = (
 				upsertMerchantCategoryRule({
 					normalizedDescription: updated.normalizedDescription,
 					categoryId: input.categoryId,
-					confidence: 1
+					confidence: 1,
 				});
 			}
 
@@ -182,5 +181,5 @@ export const assignTransactionCategoryEffect = (
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to assign transaction category')
+				: persistenceError('Failed to assign transaction category'),
 	});

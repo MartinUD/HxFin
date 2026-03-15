@@ -8,16 +8,16 @@ function makeFetchLayer(fetcher: typeof fetch): Layer.Layer<FetchHttpClient.Fetc
 
 export function provideBrowserRuntime<A, E, R>(
 	effect: Effect.Effect<A, E, R>,
-	fetcher: typeof fetch = globalThis.fetch
+	fetcher: typeof fetch = globalThis.fetch,
 ): Effect.Effect<A, E, never> {
 	return effect.pipe(
-		Effect.provide(Layer.merge(FetchHttpClient.layer, makeFetchLayer(fetcher)))
+		Effect.provide(Layer.merge(FetchHttpClient.layer, makeFetchLayer(fetcher))),
 	) as Effect.Effect<A, E, never>;
 }
 
 export function runUiEffect<A, E, R>(
 	effect: Effect.Effect<A, E, R>,
-	fetcher: typeof fetch = globalThis.fetch
+	fetcher: typeof fetch = globalThis.fetch,
 ): Promise<A> {
 	return Effect.runPromise(provideBrowserRuntime(effect, fetcher));
 }

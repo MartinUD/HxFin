@@ -7,5 +7,5 @@ export type {
 	WishlistCategory,
 	WishlistFundingStrategy,
 	WishlistItem,
-	WishlistTargetAmountType
+	WishlistTargetAmountType,
 } from '$lib/schema/wishlist';

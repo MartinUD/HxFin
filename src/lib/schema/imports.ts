@@ -1,12 +1,12 @@
 import * as Schema from 'effect/Schema';
 
-import { IsoDateSchema, IsoDateTimeSchema, NullableStringSchema, PositiveAmountSchema } from '$lib/schema/common';
+import { IsoDateSchema, IsoDateTimeSchema, NullableStringSchema } from '$lib/schema/common';
 
 export const TransactionMatchMethodSchema = Schema.Literal(
 	'rule_exact',
 	'history_exact',
 	'manual',
-	'needs_review'
+	'needs_review',
 );
 export type TransactionMatchMethod = Schema.Schema.Type<typeof TransactionMatchMethodSchema>;
 
@@ -20,7 +20,7 @@ export const ImportBatchSchema = Schema.Struct({
 	rowCount: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 	status: ImportBatchStatusSchema,
 	createdAt: IsoDateTimeSchema,
-	updatedAt: IsoDateTimeSchema
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type ImportBatch = Schema.Schema.Type<typeof ImportBatchSchema>;
@@ -38,7 +38,7 @@ export const ImportedTransactionSchema = Schema.Struct({
 	importBatchId: Schema.String,
 	importBatchSourceName: Schema.String,
 	createdAt: IsoDateTimeSchema,
-	updatedAt: IsoDateTimeSchema
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type ImportedTransaction = Schema.Schema.Type<typeof ImportedTransactionSchema>;
@@ -50,7 +50,7 @@ export const MerchantCategoryRuleSchema = Schema.Struct({
 	categoryName: NullableStringSchema,
 	confidence: Schema.Number,
 	createdAt: IsoDateTimeSchema,
-	updatedAt: IsoDateTimeSchema
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type MerchantCategoryRule = Schema.Schema.Type<typeof MerchantCategoryRuleSchema>;
@@ -61,8 +61,8 @@ export const UploadCsvResultSchema = Schema.Struct({
 		inserted: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 		categorizedByRule: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 		categorizedByHistory: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
-		needsReview: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0))
-	})
+		needsReview: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+	}),
 });
 
 export type UploadCsvResult = Schema.Schema.Type<typeof UploadCsvResultSchema>;
@@ -70,7 +70,7 @@ export type UploadCsvResult = Schema.Schema.Type<typeof UploadCsvResultSchema>;
 export const ImportCsvInputSchema = Schema.Struct({
 	sourceName: Schema.String.pipe(Schema.minLength(1)),
 	csvText: Schema.String.pipe(Schema.minLength(1)),
-	importedAt: Schema.optional(IsoDateTimeSchema)
+	importedAt: Schema.optional(IsoDateTimeSchema),
 });
 
 export type ImportCsvInput = Schema.Schema.Type<typeof ImportCsvInputSchema>;
@@ -80,9 +80,9 @@ export const ListImportBatchesQuerySchema = Schema.Struct({
 		Schema.NumberFromString.pipe(
 			Schema.int(),
 			Schema.greaterThanOrEqualTo(1),
-			Schema.lessThanOrEqualTo(200)
-		)
-	)
+			Schema.lessThanOrEqualTo(200),
+		),
+	),
 });
 
 export type ListImportBatchesQuery = Schema.Schema.Type<typeof ListImportBatchesQuerySchema>;
@@ -93,16 +93,20 @@ export const ListReviewTransactionsQuerySchema = Schema.Struct({
 		Schema.NumberFromString.pipe(
 			Schema.int(),
 			Schema.greaterThanOrEqualTo(1),
-			Schema.lessThanOrEqualTo(500)
-		)
-	)
+			Schema.lessThanOrEqualTo(500),
+		),
+	),
 });
 
-export type ListReviewTransactionsQuery = Schema.Schema.Type<typeof ListReviewTransactionsQuerySchema>;
+export type ListReviewTransactionsQuery = Schema.Schema.Type<
+	typeof ListReviewTransactionsQuerySchema
+>;
 
 export const AssignTransactionCategoryInputSchema = Schema.Struct({
 	categoryId: NullableStringSchema,
-	saveRule: Schema.optional(Schema.Boolean)
+	saveRule: Schema.optional(Schema.Boolean),
 });
 
-export type AssignTransactionCategoryInput = Schema.Schema.Type<typeof AssignTransactionCategoryInputSchema>;
+export type AssignTransactionCategoryInput = Schema.Schema.Type<
+	typeof AssignTransactionCategoryInputSchema
+>;

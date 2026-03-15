@@ -1,6 +1,13 @@
 import * as Effect from 'effect/Effect';
 
 import { notFoundError, persistenceError, validationError } from '$lib/effect/errors';
+import type {
+	CreateInvestmentAccountInput,
+	CreateInvestmentHoldingInput,
+	ListInvestmentHoldingsQuery,
+	UpdateInvestmentAccountInput,
+	UpdateInvestmentHoldingInput,
+} from '$lib/schema/investments';
 import {
 	createInvestmentAccount,
 	createInvestmentHolding,
@@ -10,18 +17,9 @@ import {
 	listInvestmentAccounts,
 	listInvestmentHoldings,
 	updateInvestmentAccount,
-	updateInvestmentHolding
+	updateInvestmentHolding,
 } from '$lib/server/investments/repository';
 import { refreshTrackedInvestmentHoldings } from '$lib/server/investments/tracking';
-import type {
-	CreateInvestmentAccountInput,
-	CreateInvestmentHoldingInput,
-	InvestmentAccount,
-	InvestmentHolding,
-	ListInvestmentHoldingsQuery,
-	UpdateInvestmentAccountInput,
-	UpdateInvestmentHoldingInput
-} from '$lib/schema/investments';
 
 function normalizeNullableText(value: string | null | undefined): string | null | undefined {
 	if (value === undefined || value === null) {
@@ -35,7 +33,7 @@ function normalizeNullableText(value: string | null | undefined): string | null 
 export const listInvestmentAccountsEffect = () =>
 	Effect.try({
 		try: () => listInvestmentAccounts(),
-		catch: () => persistenceError('Failed to load investment accounts')
+		catch: () => persistenceError('Failed to load investment accounts'),
 	});
 
 export const createInvestmentAccountEffect = (input: CreateInvestmentAccountInput) =>
@@ -45,12 +43,15 @@ export const createInvestmentAccountEffect = (input: CreateInvestmentAccountInpu
 				name: input.name.trim(),
 				institution: normalizeNullableText(input.institution) ?? null,
 				currency: input.currency?.trim().toUpperCase() || 'SEK',
-				totalValue: input.totalValue
+				totalValue: input.totalValue,
 			}),
-		catch: () => persistenceError('Failed to create investment account')
+		catch: () => persistenceError('Failed to create investment account'),
 	});
 
-export const updateInvestmentAccountEffect = (accountId: string, input: UpdateInvestmentAccountInput) =>
+export const updateInvestmentAccountEffect = (
+	accountId: string,
+	input: UpdateInvestmentAccountInput,
+) =>
 	Effect.try({
 		try: () => {
 			if (Object.keys(input).length === 0) {
@@ -60,9 +61,11 @@ export const updateInvestmentAccountEffect = (accountId: string, input: UpdateIn
 			const account = updateInvestmentAccount(accountId, {
 				name: input.name?.trim(),
 				institution:
-					input.institution === undefined ? undefined : normalizeNullableText(input.institution) ?? null,
+					input.institution === undefined
+						? undefined
+						: (normalizeNullableText(input.institution) ?? null),
 				currency: input.currency?.trim().toUpperCase(),
-				totalValue: input.totalValue
+				totalValue: input.totalValue,
 			});
 			if (!account) {
 				throw notFoundError('Investment account was not found', 'ACCOUNT_NOT_FOUND');
@@ -72,7 +75,7 @@ export const updateInvestmentAccountEffect = (accountId: string, input: UpdateIn
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to update investment account')
+				: persistenceError('Failed to update investment account'),
 	});
 
 export const deleteInvestmentAccountEffect = (accountId: string) =>
@@ -85,13 +88,13 @@ export const deleteInvestmentAccountEffect = (accountId: string) =>
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to delete investment account')
+				: persistenceError('Failed to delete investment account'),
 	});
 
 export const listInvestmentHoldingsEffect = (query: ListInvestmentHoldingsQuery = {}) =>
 	Effect.try({
 		try: () => listInvestmentHoldings(query),
-		catch: () => persistenceError('Failed to load investment holdings')
+		catch: () => persistenceError('Failed to load investment holdings'),
 	});
 
 export const createInvestmentHoldingEffect = (input: CreateInvestmentHoldingInput) =>
@@ -110,16 +113,19 @@ export const createInvestmentHoldingEffect = (input: CreateInvestmentHoldingInpu
 				latestUnitPrice: input.latestUnitPrice ?? null,
 				trackerSource: input.trackerSource ?? 'manual',
 				trackerUrl: normalizeNullableText(input.trackerUrl) ?? null,
-				sortOrder: input.sortOrder ?? 0
+				sortOrder: input.sortOrder ?? 0,
 			});
 		},
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to create investment holding')
+				: persistenceError('Failed to create investment holding'),
 	});
 
-export const updateInvestmentHoldingEffect = (holdingId: string, input: UpdateInvestmentHoldingInput) =>
+export const updateInvestmentHoldingEffect = (
+	holdingId: string,
+	input: UpdateInvestmentHoldingInput,
+) =>
 	Effect.try({
 		try: () => {
 			if (Object.keys(input).length === 0) {
@@ -133,11 +139,18 @@ export const updateInvestmentHoldingEffect = (holdingId: string, input: UpdateIn
 			const holding = updateInvestmentHolding(holdingId, {
 				...input,
 				name: input.name?.trim(),
-				trackerUrl: input.trackerUrl === undefined ? undefined : normalizeNullableText(input.trackerUrl) ?? null,
+				trackerUrl:
+					input.trackerUrl === undefined
+						? undefined
+						: (normalizeNullableText(input.trackerUrl) ?? null),
 				latestPriceDate:
-					input.latestPriceDate === undefined ? undefined : normalizeNullableText(input.latestPriceDate) ?? null,
+					input.latestPriceDate === undefined
+						? undefined
+						: (normalizeNullableText(input.latestPriceDate) ?? null),
 				lastSyncedAt:
-					input.lastSyncedAt === undefined ? undefined : normalizeNullableText(input.lastSyncedAt) ?? null
+					input.lastSyncedAt === undefined
+						? undefined
+						: (normalizeNullableText(input.lastSyncedAt) ?? null),
 			});
 			if (!holding) {
 				throw notFoundError('Investment holding was not found', 'HOLDING_NOT_FOUND');
@@ -147,7 +160,7 @@ export const updateInvestmentHoldingEffect = (holdingId: string, input: UpdateIn
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to update investment holding')
+				: persistenceError('Failed to update investment holding'),
 	});
 
 export const deleteInvestmentHoldingEffect = (holdingId: string) =>
@@ -160,7 +173,7 @@ export const deleteInvestmentHoldingEffect = (holdingId: string) =>
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to delete investment holding')
+				: persistenceError('Failed to delete investment holding'),
 	});
 
 export const refreshTrackedInvestmentHoldingsEffect = () =>
@@ -176,9 +189,9 @@ export const refreshTrackedInvestmentHoldingsEffect = () =>
 					message: null,
 					currentValue: result.currentValue,
 					unitPrice: result.unitPrice,
-					priceDate: result.priceDate
-				}))
+					priceDate: result.priceDate,
+				})),
 			};
 		},
-		catch: () => persistenceError('Failed to refresh tracked investment holdings')
+		catch: () => persistenceError('Failed to refresh tracked investment holdings'),
 	});

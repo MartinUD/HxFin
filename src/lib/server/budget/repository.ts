@@ -1,10 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, desc, eq, sql } from 'drizzle-orm';
-
-import { orm } from '$lib/server/drizzle/client';
-import { budgetCategories, recurringCosts } from '$lib/server/drizzle/schema';
-import { ensureSchema } from '$lib/server/schema';
 import type {
 	BudgetCategory,
 	CreateCategoryInput,
@@ -12,8 +8,11 @@ import type {
 	ListRecurringCostsQuery,
 	RecurringCost,
 	UpdateCategoryInput,
-	UpdateRecurringCostInput
+	UpdateRecurringCostInput,
 } from '$lib/server/budget/types';
+import { orm } from '$lib/server/drizzle/client';
+import { budgetCategories, recurringCosts } from '$lib/server/drizzle/schema';
+import { ensureSchema } from '$lib/server/schema';
 
 type BudgetCategoryInsert = typeof budgetCategories.$inferInsert;
 type RecurringCostInsert = typeof recurringCosts.$inferInsert;
@@ -39,11 +38,7 @@ export function listCategories(): BudgetCategory[] {
 export function getCategoryById(categoryId: string): BudgetCategory | null {
 	ensureReady();
 
-	const row = orm
-		.select()
-		.from(budgetCategories)
-		.where(eq(budgetCategories.id, categoryId))
-		.get();
+	const row = orm.select().from(budgetCategories).where(eq(budgetCategories.id, categoryId)).get();
 
 	return row ?? null;
 }
@@ -62,7 +57,7 @@ export function createCategory(input: CreateCategoryInput): BudgetCategory {
 			description: input.description,
 			color: input.color,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -76,7 +71,7 @@ export function createCategory(input: CreateCategoryInput): BudgetCategory {
 
 export function updateCategory(
 	categoryId: string,
-	input: UpdateCategoryInput
+	input: UpdateCategoryInput,
 ): BudgetCategory | null {
 	ensureReady();
 
@@ -100,11 +95,7 @@ export function updateCategory(
 
 	updates.updatedAt = nowIso();
 
-	orm
-		.update(budgetCategories)
-		.set(updates)
-		.where(eq(budgetCategories.id, categoryId))
-		.run();
+	orm.update(budgetCategories).set(updates).where(eq(budgetCategories.id, categoryId)).run();
 
 	return getCategoryById(categoryId);
 }
@@ -144,11 +135,7 @@ export function listRecurringCosts(query: ListRecurringCostsQuery = {}): Recurri
 export function getRecurringCostById(costId: string): RecurringCost | null {
 	ensureReady();
 
-	const row = orm
-		.select()
-		.from(recurringCosts)
-		.where(eq(recurringCosts.id, costId))
-		.get();
+	const row = orm.select().from(recurringCosts).where(eq(recurringCosts.id, costId)).get();
 
 	return row ?? null;
 }
@@ -173,7 +160,7 @@ export function createRecurringCost(input: CreateRecurringCostInput): RecurringC
 			endDate: input.endDate,
 			isActive: input.isActive,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -187,7 +174,7 @@ export function createRecurringCost(input: CreateRecurringCostInput): RecurringC
 
 export function updateRecurringCost(
 	costId: string,
-	input: UpdateRecurringCostInput
+	input: UpdateRecurringCostInput,
 ): RecurringCost | null {
 	ensureReady();
 
@@ -235,11 +222,7 @@ export function updateRecurringCost(
 
 	updates.updatedAt = nowIso();
 
-	orm
-		.update(recurringCosts)
-		.set(updates)
-		.where(eq(recurringCosts.id, costId))
-		.run();
+	orm.update(recurringCosts).set(updates).where(eq(recurringCosts.id, costId)).run();
 
 	return getRecurringCostById(costId);
 }

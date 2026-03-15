@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import {
 	formatLocalizedNumber,
 	formatSekAmount,
-	formatSekCurrency
+	formatSekCurrency,
 } from '../src/lib/finance/format.ts';
 
 function normalizeSpaces(value: string): string {

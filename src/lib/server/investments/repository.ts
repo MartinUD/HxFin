@@ -1,15 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 
 import sqlite from '$lib/server/db';
 import { orm } from '$lib/server/drizzle/client';
 import {
 	investmentAccounts,
 	investmentHoldingSnapshots,
-	investmentHoldings
+	investmentHoldings,
 } from '$lib/server/drizzle/schema';
-import { ensureSchema } from '$lib/server/schema';
 import type {
 	CreateInvestmentAccountInput,
 	CreateInvestmentHoldingInput,
@@ -17,8 +16,9 @@ import type {
 	InvestmentHolding,
 	ListInvestmentHoldingsQuery,
 	UpdateInvestmentAccountInput,
-	UpdateInvestmentHoldingInput
+	UpdateInvestmentHoldingInput,
 } from '$lib/server/investments/types';
+import { ensureSchema } from '$lib/server/schema';
 
 type InvestmentAccountInsert = typeof investmentAccounts.$inferInsert;
 type InvestmentHoldingInsert = typeof investmentHoldings.$inferInsert;
@@ -48,7 +48,7 @@ function getHoldingSnapshotPair(holdingId: string): HoldingSnapshotPairRow | und
 				FROM investment_holding_snapshots
 				WHERE holding_id = ?
 				LIMIT 2
-			 )`
+			 )`,
 		)
 		.get(holdingId) as HoldingSnapshotPairRow | undefined;
 }
@@ -69,18 +69,14 @@ function mapHolding(row: typeof investmentHoldings.$inferSelect): InvestmentHold
 	return {
 		...row,
 		changeAmountSinceLastSnapshot: changeAmount,
-		changePercentSinceLastSnapshot: changePercent
+		changePercentSinceLastSnapshot: changePercent,
 	};
 }
 
 export function listInvestmentAccounts(): InvestmentAccount[] {
 	ensureReady();
 
-	return orm
-		.select()
-		.from(investmentAccounts)
-		.orderBy(asc(investmentAccounts.createdAt))
-		.all();
+	return orm.select().from(investmentAccounts).orderBy(asc(investmentAccounts.createdAt)).all();
 }
 
 export function getInvestmentAccountById(accountId: string): InvestmentAccount | null {
@@ -110,7 +106,7 @@ export function createInvestmentAccount(input: CreateInvestmentAccountInput): In
 			currency: input.currency,
 			totalValue: input.totalValue,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -124,7 +120,7 @@ export function createInvestmentAccount(input: CreateInvestmentAccountInput): In
 
 export function updateInvestmentAccount(
 	accountId: string,
-	input: UpdateInvestmentAccountInput
+	input: UpdateInvestmentAccountInput,
 ): InvestmentAccount | null {
 	ensureReady();
 
@@ -152,11 +148,7 @@ export function updateInvestmentAccount(
 
 	updates.updatedAt = nowIso();
 
-	orm
-		.update(investmentAccounts)
-		.set(updates)
-		.where(eq(investmentAccounts.id, accountId))
-		.run();
+	orm.update(investmentAccounts).set(updates).where(eq(investmentAccounts.id, accountId)).run();
 
 	return getInvestmentAccountById(accountId);
 }
@@ -172,7 +164,9 @@ export function deleteInvestmentAccount(accountId: string): boolean {
 	return true;
 }
 
-export function listInvestmentHoldings(query: ListInvestmentHoldingsQuery = {}): InvestmentHolding[] {
+export function listInvestmentHoldings(
+	query: ListInvestmentHoldingsQuery = {},
+): InvestmentHolding[] {
 	ensureReady();
 
 	const conditions = [];
@@ -188,7 +182,7 @@ export function listInvestmentHoldings(query: ListInvestmentHoldingsQuery = {}):
 		.orderBy(
 			asc(investmentHoldings.accountId),
 			asc(investmentHoldings.sortOrder),
-			asc(investmentHoldings.createdAt)
+			asc(investmentHoldings.createdAt),
 		)
 		.all();
 
@@ -229,7 +223,7 @@ export function createInvestmentHolding(input: CreateInvestmentHoldingInput): In
 			lastSyncedAt: null,
 			sortOrder: input.sortOrder,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -243,7 +237,7 @@ export function createInvestmentHolding(input: CreateInvestmentHoldingInput): In
 
 export function updateInvestmentHolding(
 	holdingId: string,
-	input: UpdateInvestmentHoldingInput
+	input: UpdateInvestmentHoldingInput,
 ): InvestmentHolding | null {
 	ensureReady();
 
@@ -299,11 +293,7 @@ export function updateInvestmentHolding(
 
 	updates.updatedAt = nowIso();
 
-	orm
-		.update(investmentHoldings)
-		.set(updates)
-		.where(eq(investmentHoldings.id, holdingId))
-		.run();
+	orm.update(investmentHoldings).set(updates).where(eq(investmentHoldings.id, holdingId)).run();
 
 	return getInvestmentHoldingById(holdingId);
 }
@@ -336,7 +326,7 @@ export function createInvestmentHoldingSnapshot(input: {
 			currentValue: input.currentValue,
 			unitPrice: input.unitPrice,
 			units: input.units,
-			capturedAt: input.capturedAt ?? nowIso()
+			capturedAt: input.capturedAt ?? nowIso(),
 		})
 		.run();
 }

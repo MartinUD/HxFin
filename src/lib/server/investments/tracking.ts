@@ -1,7 +1,7 @@
 import {
 	createInvestmentHoldingSnapshot,
 	listInvestmentHoldings,
-	updateInvestmentHolding
+	updateInvestmentHolding,
 } from '$lib/server/investments/repository';
 import type { InvestmentHolding } from '$lib/server/investments/types';
 
@@ -37,17 +37,14 @@ interface RefreshHoldingResult {
 const nordeaUrlByHoldingName: Record<string, string> = {
 	'Nordea Emerging Markets Enhanced BP':
 		'https://www.nordeafunds.com/sv/fonder/emerging-markets-enhanced-bp',
-	'Nordea Europa Index Select A':
-		'https://www.nordeafunds.com/sv/fonder/europa-index-select-a',
-	'Nordea Global Index Select A':
-		'https://www.nordeafunds.com/sv/fonder/global-index-select-a',
-	'Nordea Sverige Passiv':
-		'https://www.nordeafunds.com/sv/fonder/sverige-passiv-a-a'
+	'Nordea Europa Index Select A': 'https://www.nordeafunds.com/sv/fonder/europa-index-select-a',
+	'Nordea Global Index Select A': 'https://www.nordeafunds.com/sv/fonder/global-index-select-a',
+	'Nordea Sverige Passiv': 'https://www.nordeafunds.com/sv/fonder/sverige-passiv-a-a',
 };
 
 const avanzaSlugByHoldingName: Record<string, string> = {
 	'Avanza Global': 'avanza-global',
-	'Avanza Emerging Markets': 'avanza-emerging-markets'
+	'Avanza Emerging Markets': 'avanza-emerging-markets',
 };
 
 function parseNordeaDecimal(value: string): number {
@@ -67,8 +64,8 @@ async function fetchNordeaQuote(url: string): Promise<NordeaQuote> {
 	const response = await fetch(url, {
 		headers: {
 			'user-agent': 'Mozilla/5.0 FinDash/1.0',
-			accept: 'text/html,application/xhtml+xml'
-		}
+			accept: 'text/html,application/xhtml+xml',
+		},
 	});
 
 	if (!response.ok) {
@@ -77,7 +74,7 @@ async function fetchNordeaQuote(url: string): Promise<NordeaQuote> {
 
 	const html = await response.text();
 	const match = html.match(
-		/<div class="title">Kurs \(per ([0-9]{2}\.[0-9]{2})\.\)<\/div>\s*<div class="value">([0-9\s.,]+)<\/div>/i
+		/<div class="title">Kurs \(per ([0-9]{2}\.[0-9]{2})\.\)<\/div>\s*<div class="value">([0-9\s.,]+)<\/div>/i,
 	);
 
 	if (!match) {
@@ -86,7 +83,7 @@ async function fetchNordeaQuote(url: string): Promise<NordeaQuote> {
 
 	return {
 		priceDate: toIsoDate(match[1]),
-		unitPrice: parseNordeaDecimal(match[2])
+		unitPrice: parseNordeaDecimal(match[2]),
 	};
 }
 
@@ -98,7 +95,7 @@ function persistRefreshedHolding(
 		units: number;
 		priceDate: string;
 		trackerUrl: string;
-	}
+	},
 ): RefreshHoldingResult {
 	const syncedAt = new Date().toISOString();
 
@@ -108,7 +105,7 @@ function persistRefreshedHolding(
 		latestUnitPrice: input.unitPrice,
 		trackerUrl: input.trackerUrl,
 		latestPriceDate: input.priceDate,
-		lastSyncedAt: syncedAt
+		lastSyncedAt: syncedAt,
 	});
 
 	createInvestmentHoldingSnapshot({
@@ -116,7 +113,7 @@ function persistRefreshedHolding(
 		currentValue: input.currentValue,
 		unitPrice: input.unitPrice,
 		units: input.units,
-		capturedAt: syncedAt
+		capturedAt: syncedAt,
 	});
 
 	return {
@@ -124,11 +121,13 @@ function persistRefreshedHolding(
 		name: holding.name,
 		currentValue: input.currentValue,
 		unitPrice: input.unitPrice,
-		priceDate: input.priceDate
+		priceDate: input.priceDate,
 	};
 }
 
-async function refreshNordeaHolding(holding: InvestmentHolding): Promise<RefreshHoldingResult | null> {
+async function refreshNordeaHolding(
+	holding: InvestmentHolding,
+): Promise<RefreshHoldingResult | null> {
 	const normalizedTrackerUrl = nordeaUrlByHoldingName[holding.name] ?? holding.trackerUrl;
 	if (!normalizedTrackerUrl) {
 		return null;
@@ -143,7 +142,7 @@ async function refreshNordeaHolding(holding: InvestmentHolding): Promise<Refresh
 		units,
 		unitPrice: quote.unitPrice,
 		priceDate: quote.priceDate,
-		trackerUrl: normalizedTrackerUrl
+		trackerUrl: normalizedTrackerUrl,
 	});
 }
 
@@ -163,13 +162,13 @@ async function searchAvanzaFund(query: string): Promise<AvanzaSearchHit | null> 
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json',
-			accept: 'application/json'
+			accept: 'application/json',
 		},
 		body: JSON.stringify({
 			query,
 			instrumentType: 'FUND',
-			limit: 10
-		})
+			limit: 10,
+		}),
 	});
 
 	if (!response.ok) {
@@ -177,7 +176,11 @@ async function searchAvanzaFund(query: string): Promise<AvanzaSearchHit | null> 
 	}
 
 	const payload = (await response.json()) as AvanzaSearchResponse;
-	return payload.hits.find((hit) => hit.title.toLowerCase() === query.toLowerCase()) ?? payload.hits[0] ?? null;
+	return (
+		payload.hits.find((hit) => hit.title.toLowerCase() === query.toLowerCase()) ??
+		payload.hits[0] ??
+		null
+	);
 }
 
 async function fetchAvanzaQuote(holding: InvestmentHolding): Promise<{
@@ -194,11 +197,14 @@ async function fetchAvanzaQuote(holding: InvestmentHolding): Promise<{
 		throw new Error(`Could not resolve Avanza fund for ${holding.name}`);
 	}
 
-	const response = await fetch(`https://www.avanza.se/_api/fund-guide/guide/${searchHit.orderBookId}`, {
-		headers: {
-			accept: 'application/json'
-		}
-	});
+	const response = await fetch(
+		`https://www.avanza.se/_api/fund-guide/guide/${searchHit.orderBookId}`,
+		{
+			headers: {
+				accept: 'application/json',
+			},
+		},
+	);
 
 	if (!response.ok) {
 		throw new Error(`Avanza guide request failed with ${response.status}`);
@@ -208,11 +214,13 @@ async function fetchAvanzaQuote(holding: InvestmentHolding): Promise<{
 	return {
 		priceDate: payload.navDate.slice(0, 10),
 		unitPrice: payload.nav,
-		trackerUrl: `https://www.avanza.se/${searchHit.urlSlugName ?? slug ?? searchHit.orderBookId}`
+		trackerUrl: `https://www.avanza.se/${searchHit.urlSlugName ?? slug ?? searchHit.orderBookId}`,
 	};
 }
 
-async function refreshAvanzaHolding(holding: InvestmentHolding): Promise<RefreshHoldingResult | null> {
+async function refreshAvanzaHolding(
+	holding: InvestmentHolding,
+): Promise<RefreshHoldingResult | null> {
 	const quote = await fetchAvanzaQuote(holding);
 	const units = holding.units ?? Number((holding.currentValue / quote.unitPrice).toFixed(6));
 	const currentValue = Number((quote.unitPrice * units).toFixed(2));
@@ -222,7 +230,7 @@ async function refreshAvanzaHolding(holding: InvestmentHolding): Promise<Refresh
 		units,
 		unitPrice: quote.unitPrice,
 		priceDate: quote.priceDate,
-		trackerUrl: quote.trackerUrl
+		trackerUrl: quote.trackerUrl,
 	});
 }
 

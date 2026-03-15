@@ -17,28 +17,26 @@ function makeFetchLayer(fetcher: typeof fetch): Layer.Layer<FetchHttpClient.Fetc
 	return Layer.succeed(FetchHttpClient.Fetch, fetcher);
 }
 
-function makeClientRuntime(fetcher: typeof fetch): Layer.Layer<never, never, FetchHttpClient.Fetch> {
+function makeClientRuntime(
+	fetcher: typeof fetch,
+): Layer.Layer<never, never, FetchHttpClient.Fetch> {
 	return makeFetchLayer(fetcher);
 }
 
 export const makeApiClient = (
 	fetcher: typeof fetch = globalThis.fetch,
-	baseUrl: string | URL | undefined = getDefaultBaseUrl()
+	baseUrl: string | URL | undefined = getDefaultBaseUrl(),
 ) =>
 	HttpApiClient.make(FinApi, { baseUrl }).pipe(
-		Effect.provide(Layer.merge(FetchHttpClient.layer, makeClientRuntime(fetcher)))
+		Effect.provide(Layer.merge(FetchHttpClient.layer, makeClientRuntime(fetcher))),
 	);
 
-export type ApiClient = typeof makeApiClient extends (
-	...args: Array<any>
-) => Effect.Effect<infer Client, any, any>
-	? Client
-	: never;
+export type ApiClient = Effect.Effect.Success<ReturnType<typeof makeApiClient>>;
 
 export function withApiClient<A, E, R>(
 	fetcher: typeof fetch,
 	baseUrlOrFn: string | URL | ((client: ApiClient) => Effect.Effect<A, E, R>) | undefined,
-	maybeFn?: (client: ApiClient) => Effect.Effect<A, E, R>
+	maybeFn?: (client: ApiClient) => Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, FetchHttpClient.Fetch | R> {
 	const baseUrl =
 		typeof baseUrlOrFn === 'function' || baseUrlOrFn === undefined ? undefined : baseUrlOrFn;

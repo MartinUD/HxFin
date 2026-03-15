@@ -1,20 +1,21 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { withApiClient } from '$lib/api/client';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import type * as Effect from 'effect/Effect';
+	import { type ApiClient, withApiClient } from '$lib/api/client';
+	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatLocalizedNumber } from '$lib/finance/format';
 	import type { CreateLoanInput, Loan, LoanDirection, LoanStatus } from '$lib/schema/loans';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import type { PageData } from './$types';
 
 	interface Props {
 		data: PageData;
@@ -181,7 +182,7 @@
 		return toUserMessage(error, fallbackMessage);
 	}
 
-	function apiRun(work: (client: any) => any): Promise<any> {
+	function apiRun<A, E, R>(work: (client: ApiClient) => Effect.Effect<A, E, R>): Promise<A> {
 		return runUiEffect(withApiClient(fetch, work));
 	}
 
@@ -287,18 +288,18 @@
 			<h1 class="page-title">Loans</h1>
 
 			<div class="filter-group" role="group" aria-label="Filter by status">
-				<button class="filter-chip" class:active={statusFilter === 'all'} onclick={() => (statusFilter = 'all')}>All</button>
-				<button class="filter-chip" class:active={statusFilter === 'open'} onclick={() => (statusFilter = 'open')}>Open</button>
-				<button class="filter-chip" class:active={statusFilter === 'overdue'} onclick={() => (statusFilter = 'overdue')}>Overdue</button>
-				<button class="filter-chip" class:active={statusFilter === 'paid'} onclick={() => (statusFilter = 'paid')}>Paid</button>
+				<button type="button" class="filter-chip" class:active={statusFilter === 'all'} onclick={() => (statusFilter = 'all')}>All</button>
+				<button type="button" class="filter-chip" class:active={statusFilter === 'open'} onclick={() => (statusFilter = 'open')}>Open</button>
+				<button type="button" class="filter-chip" class:active={statusFilter === 'overdue'} onclick={() => (statusFilter = 'overdue')}>Overdue</button>
+				<button type="button" class="filter-chip" class:active={statusFilter === 'paid'} onclick={() => (statusFilter = 'paid')}>Paid</button>
 			</div>
 
 			<div class="topbar-divider" aria-hidden="true"></div>
 
 			<div class="filter-group" role="group" aria-label="Filter by direction">
-				<button class="filter-chip" class:active={directionFilter === 'all'} onclick={() => (directionFilter = 'all')}>All directions</button>
-				<button class="filter-chip" class:active={directionFilter === 'lent'} onclick={() => (directionFilter = 'lent')}>Lent</button>
-				<button class="filter-chip" class:active={directionFilter === 'borrowed'} onclick={() => (directionFilter = 'borrowed')}>Borrowed</button>
+				<button type="button" class="filter-chip" class:active={directionFilter === 'all'} onclick={() => (directionFilter = 'all')}>All directions</button>
+				<button type="button" class="filter-chip" class:active={directionFilter === 'lent'} onclick={() => (directionFilter = 'lent')}>Lent</button>
+				<button type="button" class="filter-chip" class:active={directionFilter === 'borrowed'} onclick={() => (directionFilter = 'borrowed')}>Borrowed</button>
 			</div>
 		</div>
 
@@ -313,7 +314,7 @@
 		<Alert.Root class="border-destructive/50 bg-destructive/10">
 			<Alert.Description class="flex items-center justify-between text-destructive text-xs">
 				{errorMessage}
-				<button onclick={() => (errorMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
+				<button type="button" onclick={() => (errorMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -379,6 +380,7 @@
 							<Table.Cell class="loan-cell actions-cell">
 								<div class="row-actions">
 									<button
+										type="button"
 										class="row-action"
 										onclick={() => openEditDialog(loan)}
 										aria-label="Edit loan"
@@ -387,6 +389,7 @@
 										<PencilIcon size={12} strokeWidth={1.8} />
 									</button>
 									<button
+										type="button"
 										class="row-action danger"
 										onclick={() => handleDelete(loan.id)}
 										aria-label="Delete loan"

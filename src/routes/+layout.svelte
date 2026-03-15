@@ -19,6 +19,7 @@
 
 <!-- Mobile hamburger -->
 <button
+	type="button"
 	class="hamburger"
 	onclick={() => (sidebarOpen = !sidebarOpen)}
 	aria-label="Toggle navigation"
@@ -26,12 +27,12 @@
 	aria-controls="main-sidebar"
 >
 	{#if sidebarOpen}
-		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+		<svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 			<line x1="18" y1="6" x2="6" y2="18" />
 			<line x1="6" y1="6" x2="18" y2="18" />
 		</svg>
 	{:else}
-		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+		<svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 			<line x1="3" y1="6" x2="21" y2="6" />
 			<line x1="3" y1="12" x2="21" y2="12" />
 			<line x1="3" y1="18" x2="21" y2="18" />
@@ -41,14 +42,14 @@
 
 <!-- Overlay -->
 {#if sidebarOpen}
-	<button class="overlay" onclick={closeSidebar} aria-label="Close navigation"></button>
+	<button type="button" class="overlay" onclick={closeSidebar} aria-label="Close navigation"></button>
 {/if}
 
 <div class="shell">
 	<nav id="main-sidebar" class="sidebar" class:open={sidebarOpen}>
 		<div class="logo-area">
 			<div class="logo-icon">
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<circle cx="12" cy="12" r="10" />
 					<polyline points="12 6 12 12 16 14" />
 				</svg>
@@ -61,7 +62,7 @@
 		<ul class="nav-items">
 			<li>
 				<a href="/budget" class="nav-link" class:active={isActive('/budget')} onclick={closeSidebar}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<rect x="2" y="3" width="20" height="14" rx="2" />
 						<path d="M8 21h8M12 17v4" />
 					</svg>
@@ -73,7 +74,7 @@
 			</li>
 			<li>
 				<a href="/investments" class="nav-link" class:active={isActive('/investments')} onclick={closeSidebar}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
 						<polyline points="16 7 22 7 22 13" />
 					</svg>
@@ -85,7 +86,7 @@
 			</li>
 			<li>
 				<a href="/loans" class="nav-link" class:active={isActive('/loans')} onclick={closeSidebar}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M2 7h20" />
 						<path d="M7 2v20" />
 						<path d="M14 12h8" />
@@ -99,7 +100,7 @@
 			</li>
 			<li>
 				<a href="/wishlist" class="nav-link" class:active={isActive('/wishlist')} onclick={closeSidebar}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M12 21s-7-4.35-9.5-8.2C.76 9.98 2.2 6.5 5.5 5.6c2.2-.6 4.2.2 5.5 2 1.3-1.8 3.3-2.6 5.5-2 3.3.9 4.74 4.38 3 7.2C19 16.65 12 21 12 21Z" />
 					</svg>
 					<span>Wishlist</span>
@@ -110,7 +111,7 @@
 			</li>
 			<li>
 				<a href="/imports" class="nav-link" class:active={isActive('/imports')} onclick={closeSidebar}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M12 3v12" />
 						<path d="m7 10 5 5 5-5" />
 						<path d="M4 21h16" />

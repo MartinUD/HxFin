@@ -7,7 +7,7 @@ mkdirSync(dirname(databasePath), { recursive: true });
 
 const db = new Database(databasePath, {
 	create: true,
-	strict: true
+	strict: true,
 });
 db.exec('PRAGMA foreign_keys = ON;');
 

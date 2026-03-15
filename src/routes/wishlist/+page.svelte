@@ -1,6 +1,16 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { withApiClient } from '$lib/api/client';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import type * as Effect from 'effect/Effect';
+	import { type ApiClient, withApiClient } from '$lib/api/client';
+	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
@@ -12,16 +22,7 @@
 		WishlistItem,
 		WishlistTargetAmountType
 	} from '$lib/schema/wishlist';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
-	import PencilIcon from '@lucide/svelte/icons/pencil';
-	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import type { PageData } from './$types';
 
 	interface Props { data: PageData; }
 	let { data }: Props = $props();
@@ -175,7 +176,7 @@
 		return toUserMessage(error, fallback);
 	}
 
-	function apiRun(work: (client: any) => any): Promise<any> {
+	function apiRun<A, E, R>(work: (client: ApiClient) => Effect.Effect<A, E, R>): Promise<A> {
 		return runUiEffect(withApiClient(fetch, work));
 	}
 
@@ -309,7 +310,7 @@
 			<h1 class="page-title">Wishlist</h1>
 			<div class="filter-group" role="group" aria-label="Filter by strategy">
 				{#each (['all', 'save', 'loan', 'mixed', 'buy_outright'] as const) as strategy (strategy)}
-					<button class="filter-chip" class:active={strategyFilter === strategy} onclick={() => (strategyFilter = strategy)}>
+					<button type="button" class="filter-chip" class:active={strategyFilter === strategy} onclick={() => (strategyFilter = strategy)}>
 						{strategy === 'all' ? 'All' : STRATEGY_LABELS[strategy]}
 					</button>
 				{/each}
@@ -317,9 +318,9 @@
 			{#if categories.length > 0}
 				<div class="topbar-divider" aria-hidden="true"></div>
 				<div class="filter-group" role="group" aria-label="Filter by category">
-					<button class="filter-chip" class:active={selectedCategoryFilter === 'all'} onclick={() => (selectedCategoryFilter = 'all')}>All categories</button>
+					<button type="button" class="filter-chip" class:active={selectedCategoryFilter === 'all'} onclick={() => (selectedCategoryFilter = 'all')}>All categories</button>
 					{#each categories as category (category.id)}
-						<button class="filter-chip" class:active={selectedCategoryFilter === category.id} onclick={() => (selectedCategoryFilter = category.id)}>{category.name}</button>
+						<button type="button" class="filter-chip" class:active={selectedCategoryFilter === category.id} onclick={() => (selectedCategoryFilter = category.id)}>{category.name}</button>
 					{/each}
 				</div>
 			{/if}
@@ -334,7 +335,7 @@
 		<Alert.Root class="border-destructive/50 bg-destructive/10">
 			<Alert.Description class="flex items-center justify-between text-destructive text-xs">
 				{errorMessage}
-				<button onclick={() => (errorMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
+				<button type="button" onclick={() => (errorMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -366,8 +367,8 @@
 							<Table.Cell class="cell"><div class="mono small-mono">{getLinkedLoanLabel(item.linkedLoanId)}</div></Table.Cell>
 							<Table.Cell class="cell">
 								<div class="row-actions">
-									<button class="row-action" onclick={() => openEditDialog(item)} aria-label="Edit wishlist item"><PencilIcon size={12} strokeWidth={1.8} /></button>
-									<button class="row-action danger" onclick={() => handleDelete(item.id)} aria-label="Delete wishlist item"><Trash2Icon size={12} strokeWidth={1.8} /></button>
+									<button type="button" class="row-action" onclick={() => openEditDialog(item)} aria-label="Edit wishlist item"><PencilIcon size={12} strokeWidth={1.8} /></button>
+									<button type="button" class="row-action danger" onclick={() => handleDelete(item.id)} aria-label="Delete wishlist item"><Trash2Icon size={12} strokeWidth={1.8} /></button>
 								</div>
 							</Table.Cell>
 						</Table.Row>
@@ -414,7 +415,7 @@
 						<div class="row-actions always-visible"><Button size="sm" onclick={handleSaveCategoryEdit} disabled={pending || !editCategoryName.trim()}>Save</Button><Button size="sm" variant="ghost" onclick={() => (editingCategoryId = null)}>Cancel</Button></div>
 					</div>
 				{:else}
-					<div class="category-row"><div><div class="item-name category-name">{category.name}</div>{#if category.description}<div class="muted-copy">{category.description}</div>{/if}</div><div class="row-actions always-visible"><button class="row-action" onclick={() => beginEditCategory(category)} aria-label={`Edit ${category.name}`}><PencilIcon size={12} strokeWidth={1.8} /></button><button class="row-action danger" onclick={() => handleDeleteCategory(category.id)} aria-label={`Delete ${category.name}`}><Trash2Icon size={12} strokeWidth={1.8} /></button></div></div>
+					<div class="category-row"><div><div class="item-name category-name">{category.name}</div>{#if category.description}<div class="muted-copy">{category.description}</div>{/if}</div><div class="row-actions always-visible"><button type="button" class="row-action" onclick={() => beginEditCategory(category)} aria-label={`Edit ${category.name}`}><PencilIcon size={12} strokeWidth={1.8} /></button><button type="button" class="row-action danger" onclick={() => handleDeleteCategory(category.id)} aria-label={`Delete ${category.name}`}><Trash2Icon size={12} strokeWidth={1.8} /></button></div></div>
 				{/if}
 			{:else}
 				<p class="muted-copy no-top-margin">No categories yet.</p>

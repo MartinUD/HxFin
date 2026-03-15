@@ -30,7 +30,7 @@ export function ensureSchema(): void {
 			migration.up(db);
 			db.prepare(
 				`INSERT INTO schema_migrations (id, description, applied_at)
-				 VALUES (?, ?, ?)`
+				 VALUES (?, ?, ?)`,
 			).run(migration.id, migration.description, new Date().toISOString());
 		});
 

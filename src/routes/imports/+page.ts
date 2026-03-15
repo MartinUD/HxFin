@@ -1,8 +1,7 @@
-import type { PageLoad } from './$types';
 import * as Effect from 'effect/Effect';
-
 import { withApiClient } from '$lib/api/client';
 import { runUiEffect } from '$lib/effect/runtime/browser';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, url }) => {
 	return runUiEffect(
@@ -16,9 +15,9 @@ export const load: PageLoad = async ({ fetch, url }) => {
 					.pipe(Effect.catchAll(() => Effect.succeed([]))),
 				reviewTransactions: client.imports
 					.listReviewTransactions({ urlParams: { limit: 300 } })
-					.pipe(Effect.catchAll(() => Effect.succeed([])))
-			})
+					.pipe(Effect.catchAll(() => Effect.succeed([]))),
+			}),
 		),
-		fetch
+		fetch,
 	);
 };

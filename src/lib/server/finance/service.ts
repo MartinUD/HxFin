@@ -1,10 +1,10 @@
 import * as Effect from 'effect/Effect';
 
 import { persistenceError, validationError } from '$lib/effect/errors';
-import type { FinancialProfile, UpdateFinancialProfileInput } from '$lib/schema/finance';
+import type { UpdateFinancialProfileInput } from '$lib/schema/finance';
 import {
 	getFinancialProfile,
-	updateFinancialProfile as updateFinancialProfileRow
+	updateFinancialProfile as updateFinancialProfileRow,
 } from '$lib/server/finance/repository';
 
 function normalizeUpdate(input: UpdateFinancialProfileInput): UpdateFinancialProfileInput {
@@ -13,7 +13,7 @@ function normalizeUpdate(input: UpdateFinancialProfileInput): UpdateFinancialPro
 		salaryGrowth: input.salaryGrowth,
 		municipalTaxRate: input.municipalTaxRate,
 		savingsShareOfRaise: input.savingsShareOfRaise,
-		currency: input.currency?.trim().toUpperCase()
+		currency: input.currency?.trim().toUpperCase(),
 	};
 }
 
@@ -26,7 +26,7 @@ function ensureNonEmpty(input: UpdateFinancialProfileInput): void {
 export const getFinancialProfileEffect = () =>
 	Effect.try({
 		try: () => getFinancialProfile(),
-		catch: () => persistenceError('Failed to load financial profile')
+		catch: () => persistenceError('Failed to load financial profile'),
 	});
 
 export const updateFinancialProfileEffect = (input: UpdateFinancialProfileInput) =>
@@ -39,5 +39,5 @@ export const updateFinancialProfileEffect = (input: UpdateFinancialProfileInput)
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to update financial profile')
+				: persistenceError('Failed to update financial profile'),
 	});

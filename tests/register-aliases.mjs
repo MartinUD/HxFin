@@ -1,12 +1,10 @@
+import fs from 'node:fs';
 import { registerHooks } from 'node:module';
 import path from 'node:path';
-import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const projectRoot = process.cwd();
-const aliasEntries = [
-	['$lib/', path.join(projectRoot, 'src', 'lib') + path.sep]
-];
+const aliasEntries = [['$lib/', path.join(projectRoot, 'src', 'lib') + path.sep]];
 
 function resolveAliasTarget(basePath) {
 	if (fs.existsSync(basePath) && fs.statSync(basePath).isFile()) {
@@ -17,7 +15,7 @@ function resolveAliasTarget(basePath) {
 		`${basePath}.ts`,
 		`${basePath}.js`,
 		path.join(basePath, 'index.ts'),
-		path.join(basePath, 'index.js')
+		path.join(basePath, 'index.js'),
 	];
 
 	for (const candidate of candidates) {
@@ -40,5 +38,5 @@ registerHooks({
 		}
 
 		return nextResolve(specifier, context);
-	}
+	},
 });

@@ -1,6 +1,5 @@
-import type { RequestHandler } from './$types';
-
 import { handleApiRequest } from '$lib/server/api';
+import type { RequestHandler } from './$types';
 
 const handler: RequestHandler = async ({ request }) => handleApiRequest(request);
 

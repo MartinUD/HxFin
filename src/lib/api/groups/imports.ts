@@ -10,27 +10,29 @@ import {
 	ImportedTransactionSchema,
 	ListImportBatchesQuerySchema,
 	ListReviewTransactionsQuerySchema,
-	UploadCsvResultSchema
+	UploadCsvResultSchema,
 } from '$lib/schema/imports';
 
 export const importsApiGroup = HttpApiGroup.make('imports')
 	.add(
 		HttpApiEndpoint.get('listImportBatches', '/imports/batches')
 			.setUrlParams(ListImportBatchesQuerySchema)
-			.addSuccess(Schema.Array(ImportBatchSchema))
+			.addSuccess(Schema.Array(ImportBatchSchema)),
 	)
 	.add(
 		HttpApiEndpoint.get('listReviewTransactions', '/imports/review')
 			.setUrlParams(ListReviewTransactionsQuerySchema)
-			.addSuccess(Schema.Array(ImportedTransactionSchema))
+			.addSuccess(Schema.Array(ImportedTransactionSchema)),
 	)
 	.add(
 		HttpApiEndpoint.post('uploadImportCsv', '/imports/upload')
 			.setPayload(ImportCsvInputSchema)
-			.addSuccess(UploadCsvResultSchema)
+			.addSuccess(UploadCsvResultSchema),
 	)
 	.add(
-		HttpApiEndpoint.patch('assignImportTransactionCategory')`/imports/transactions/${HttpApiSchema.param('transactionId', Schema.String)}/category`
+		HttpApiEndpoint.patch(
+			'assignImportTransactionCategory',
+		)`/imports/transactions/${HttpApiSchema.param('transactionId', Schema.String)}/category`
 			.setPayload(AssignTransactionCategoryInputSchema)
-			.addSuccess(ImportedTransactionSchema)
+			.addSuccess(ImportedTransactionSchema),
 	);

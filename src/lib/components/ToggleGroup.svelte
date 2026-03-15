@@ -18,6 +18,7 @@
 	<div class="toggle-options">
 		{#each options as option}
 			<button
+				type="button"
 				class="toggle-btn"
 				class:active={value === option.value}
 				onclick={() => (value = option.value)}

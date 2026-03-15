@@ -17,7 +17,7 @@ const REQUIRED_HEADERS = [
 	'Mottagare',
 	'Rubrik',
 	'Saldo',
-	'Valuta'
+	'Valuta',
 ] as const;
 
 function splitSemicolonLine(line: string): string[] {
@@ -66,7 +66,7 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 		throw validationError(
 			'CSV file must contain header and at least one row',
 			undefined,
-			'INVALID_CSV_FORMAT'
+			'INVALID_CSV_FORMAT',
 		);
 	}
 
@@ -81,7 +81,7 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 			throw validationError(
 				`Missing required CSV header: ${required}`,
 				undefined,
-				'INVALID_CSV_FORMAT'
+				'INVALID_CSV_FORMAT',
 			);
 		}
 	}
@@ -103,7 +103,7 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 			throw validationError(
 				`Row ${lineIndex + 1} has fewer columns than the header`,
 				undefined,
-				'INVALID_CSV_FORMAT'
+				'INVALID_CSV_FORMAT',
 			);
 		}
 
@@ -111,11 +111,15 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 		const amountRaw = columns[amountIndex] ?? '';
 		const rubricRaw = columns[rubricIndex] ?? '';
 
-		if (bookingDateRaw.trim().length === 0 || amountRaw.trim().length === 0 || rubricRaw.trim().length === 0) {
+		if (
+			bookingDateRaw.trim().length === 0 ||
+			amountRaw.trim().length === 0 ||
+			rubricRaw.trim().length === 0
+		) {
 			throw validationError(
 				`Row ${lineIndex + 1} is missing required values`,
 				undefined,
-				'INVALID_CSV_FORMAT'
+				'INVALID_CSV_FORMAT',
 			);
 		}
 
@@ -129,7 +133,7 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 			balance:
 				columns[balanceIndex] && columns[balanceIndex].trim().length > 0
 					? parseSwedishNumber(columns[balanceIndex].trim())
-					: null
+					: null,
 		});
 	}
 

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { withApiClient } from '$lib/api/client';
-	import type { PageData } from './$types';
 	import { calculate } from '$lib/calculator';
-	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
 	import ResultsPanel from '$lib/components/fire/ResultsPanel.svelte';
+	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
+	import type { PageData } from './$types';
 
 	interface Props {
 		data: PageData;

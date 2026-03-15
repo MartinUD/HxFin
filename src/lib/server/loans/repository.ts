@@ -4,13 +4,8 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
 import { orm } from '$lib/server/drizzle/client';
 import { loans } from '$lib/server/drizzle/schema';
+import type { ListLoansQuery, Loan, LoanStatus, UpdateLoanInput } from '$lib/server/loans/types';
 import { ensureSchema } from '$lib/server/schema';
-import type {
-	ListLoansQuery,
-	Loan,
-	LoanStatus,
-	UpdateLoanInput
-} from '$lib/server/loans/types';
 
 type LoanInsert = typeof loans.$inferInsert;
 
@@ -53,7 +48,7 @@ export function getLoanById(loanId: string): Loan | null {
 export function createLoan(
 	input: Omit<Loan, 'id' | 'createdAt' | 'updatedAt'> & {
 		status: LoanStatus;
-	}
+	},
 ): Loan {
 	ensureReady();
 
@@ -74,7 +69,7 @@ export function createLoan(
 			status: input.status,
 			notes: input.notes,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 

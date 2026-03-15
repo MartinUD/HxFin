@@ -1,12 +1,11 @@
 import * as Schema from 'effect/Schema';
 
 import {
-	IsoDateSchema,
 	IsoDateTimeSchema,
 	NullableIsoDateSchema,
 	NullableStringSchema,
 	PercentageSchema,
-	PositiveAmountSchema
+	PositiveAmountSchema,
 } from '$lib/schema/common';
 
 export const RecurrencePeriodSchema = Schema.Literal('weekly', 'monthly', 'yearly');
@@ -21,7 +20,7 @@ export const BudgetCategorySchema = Schema.Struct({
 	description: NullableStringSchema,
 	color: NullableStringSchema,
 	createdAt: IsoDateTimeSchema,
-	updatedAt: IsoDateTimeSchema
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type BudgetCategory = Schema.Schema.Type<typeof BudgetCategorySchema>;
@@ -38,7 +37,7 @@ export const RecurringCostSchema = Schema.Struct({
 	endDate: NullableIsoDateSchema,
 	isActive: Schema.Boolean,
 	createdAt: IsoDateTimeSchema,
-	updatedAt: IsoDateTimeSchema
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type RecurringCost = Schema.Schema.Type<typeof RecurringCostSchema>;
@@ -47,7 +46,7 @@ export const BudgetSummaryCategorySchema = Schema.Struct({
 	categoryId: Schema.String,
 	categoryName: Schema.String,
 	monthlyTotal: PositiveAmountSchema,
-	yearlyTotal: PositiveAmountSchema
+	yearlyTotal: PositiveAmountSchema,
 });
 
 export type BudgetSummaryCategory = Schema.Schema.Type<typeof BudgetSummaryCategorySchema>;
@@ -61,7 +60,7 @@ export const BudgetSummarySchema = Schema.Struct({
 	monthlyNetIncome: PositiveAmountSchema,
 	monthlyUnallocated: Schema.Number,
 	savingsRate: PercentageSchema,
-	categories: Schema.Array(BudgetSummaryCategorySchema)
+	categories: Schema.Array(BudgetSummaryCategorySchema),
 });
 
 export type BudgetSummary = Schema.Schema.Type<typeof BudgetSummarySchema>;
@@ -69,7 +68,7 @@ export type BudgetSummary = Schema.Schema.Type<typeof BudgetSummarySchema>;
 export const CreateCategoryInputSchema = Schema.Struct({
 	name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
 	description: NullableStringSchema,
-	color: NullableStringSchema
+	color: NullableStringSchema,
 });
 
 export type CreateCategoryInput = Schema.Schema.Type<typeof CreateCategoryInputSchema>;
@@ -77,7 +76,7 @@ export type CreateCategoryInput = Schema.Schema.Type<typeof CreateCategoryInputS
 export const UpdateCategoryInputSchema = Schema.Struct({
 	name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100))),
 	description: Schema.optional(NullableStringSchema),
-	color: Schema.optional(NullableStringSchema)
+	color: Schema.optional(NullableStringSchema),
 });
 
 export type UpdateCategoryInput = Schema.Schema.Type<typeof UpdateCategoryInputSchema>;
@@ -91,7 +90,7 @@ export const CreateRecurringCostInputSchema = Schema.Struct({
 	isEssential: Schema.optional(Schema.Boolean),
 	startDate: Schema.optional(NullableIsoDateSchema),
 	endDate: Schema.optional(NullableIsoDateSchema),
-	isActive: Schema.optional(Schema.Boolean)
+	isActive: Schema.optional(Schema.Boolean),
 });
 
 export type CreateRecurringCostInput = Schema.Schema.Type<typeof CreateRecurringCostInputSchema>;
@@ -105,20 +104,20 @@ export const UpdateRecurringCostInputSchema = Schema.Struct({
 	isEssential: Schema.optional(Schema.Boolean),
 	startDate: Schema.optional(NullableIsoDateSchema),
 	endDate: Schema.optional(NullableIsoDateSchema),
-	isActive: Schema.optional(Schema.Boolean)
+	isActive: Schema.optional(Schema.Boolean),
 });
 
 export type UpdateRecurringCostInput = Schema.Schema.Type<typeof UpdateRecurringCostInputSchema>;
 
 export const ListRecurringCostsQuerySchema = Schema.Struct({
 	categoryId: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
-	includeInactive: Schema.optional(Schema.BooleanFromString)
+	includeInactive: Schema.optional(Schema.BooleanFromString),
 });
 
 export type ListRecurringCostsQuery = Schema.Schema.Type<typeof ListRecurringCostsQuerySchema>;
 
 export const SummaryQuerySchema = Schema.Struct({
-	includeInactive: Schema.optional(Schema.BooleanFromString)
+	includeInactive: Schema.optional(Schema.BooleanFromString),
 });
 
 export type SummaryQuery = Schema.Schema.Type<typeof SummaryQuerySchema>;

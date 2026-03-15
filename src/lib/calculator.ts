@@ -1,5 +1,5 @@
-import { netRaiseFromGrossRaise } from './tax';
 import { formatLocalizedNumber, formatSekCurrency } from '$lib/finance/format';
+import { netRaiseFromGrossRaise } from './tax';
 
 export interface CalculatorInputs {
 	startCapital: number;
@@ -83,16 +83,12 @@ export function calculate(inputs: CalculatorInputs): YearResult[] {
 			leverageCost: Math.round(cumulativeLeverageCost),
 			totalValue: Math.round(totalValue),
 			monthlySaving: Math.round(currentMonthlySaving),
-			monthlySalary: Math.round(currentMonthlySalary)
+			monthlySalary: Math.round(currentMonthlySalary),
 		});
 
 		// Salary grows, use progressive tax to compute actual net raise
 		const grossRaise = currentMonthlySalary * (inputs.salaryGrowth / 100);
-		const netRaise = netRaiseFromGrossRaise(
-			currentMonthlySalary,
-			grossRaise,
-			inputs.kommunalskatt
-		);
+		const netRaise = netRaiseFromGrossRaise(currentMonthlySalary, grossRaise, inputs.kommunalskatt);
 		const savingsIncrease = netRaise * (inputs.savingsShareOfRaise / 100);
 		currentMonthlySalary += grossRaise;
 		currentMonthlySaving += savingsIncrease;
@@ -101,10 +97,7 @@ export function calculate(inputs: CalculatorInputs): YearResult[] {
 	return results;
 }
 
-export function calculateFireMonthly(
-	totalValue: number,
-	withdrawalRate: number
-): number {
+export function calculateFireMonthly(totalValue: number, withdrawalRate: number): number {
 	return Math.round((totalValue * (withdrawalRate / 100)) / 12);
 }
 

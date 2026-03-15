@@ -1,15 +1,16 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { withApiClient } from '$lib/api/client';
+	import type * as Effect from 'effect/Effect';
+	import { type ApiClient, withApiClient } from '$lib/api/client';
+	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
 	import type { BudgetCategory } from '$lib/schema/budget';
 	import type { ImportBatch, ImportedTransaction, UploadCsvResult } from '$lib/schema/imports';
-	import { Button } from '$lib/components/ui/button';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
-	import * as Alert from '$lib/components/ui/alert';
-	import * as Table from '$lib/components/ui/table';
+	import type { PageData } from './$types';
 
 	interface Props {
 		data: PageData;
@@ -109,7 +110,7 @@
 		return toUserMessage(error, fallbackMessage);
 	}
 
-	function apiRun(work: (client: any) => any): Promise<any> {
+	function apiRun<A, E, R>(work: (client: ApiClient) => Effect.Effect<A, E, R>): Promise<A> {
 		return runUiEffect(withApiClient(fetch, work));
 	}
 
@@ -231,7 +232,7 @@
 	<div class="page-header">
 		<div class="header-copy">
 			<div class="header-icon">
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+				<svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
 					<path d="M12 3v12" />
 					<path d="m7 10 5 5 5-5" />
 					<path d="M4 21h16" />
@@ -248,7 +249,7 @@
 		<Alert.Root class="border-destructive/50 bg-destructive/10">
 			<Alert.Description class="flex items-center justify-between text-destructive">
 				{errorMessage}
-				<button onclick={() => (errorMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
+				<button type="button" onclick={() => (errorMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -257,7 +258,7 @@
 		<Alert.Root class="border-[var(--app-border)] bg-[var(--app-accent-glow)]">
 			<Alert.Description class="flex items-center justify-between text-[var(--app-accent-light)]">
 				{successMessage}
-				<button onclick={() => (successMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
+				<button type="button" onclick={() => (successMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
@@ -359,10 +360,10 @@
 						</Table.Cell>
 						<Table.Cell>
 							<div class="row-actions">
-								<button class="row-action-btn" onclick={() => handleAssignCategory(transaction.id, false)} disabled={pending}>
+								<button type="button" class="row-action-btn" onclick={() => handleAssignCategory(transaction.id, false)} disabled={pending}>
 									Apply
 								</button>
-								<button class="row-action-btn accent" onclick={() => handleAssignCategory(transaction.id, true)} disabled={pending}>
+								<button type="button" class="row-action-btn accent" onclick={() => handleAssignCategory(transaction.id, true)} disabled={pending}>
 									Apply + Rule
 								</button>
 							</div>

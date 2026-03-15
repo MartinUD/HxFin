@@ -8,9 +8,8 @@ import {
 	budgetCategories,
 	importBatches,
 	merchantCategoryRules,
-	transactions
+	transactions,
 } from '$lib/server/drizzle/schema';
-import { ensureSchema } from '$lib/server/schema';
 import type {
 	ImportBatch,
 	ImportBatchStatus,
@@ -18,8 +17,9 @@ import type {
 	ListImportBatchesQuery,
 	ListReviewTransactionsQuery,
 	MerchantCategoryRule,
-	TransactionMatchMethod
+	TransactionMatchMethod,
 } from '$lib/server/imports/types';
+import { ensureSchema } from '$lib/server/schema';
 
 type ImportBatchInsert = typeof importBatches.$inferInsert;
 
@@ -81,7 +81,7 @@ export function createImportBatch(input: {
 			rowCount: input.rowCount,
 			status: input.status,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -96,24 +96,20 @@ export function createImportBatch(input: {
 export function getImportBatchById(batchId: string): ImportBatch | null {
 	ensureReady();
 
-	const row = orm
-		.select()
-		.from(importBatches)
-		.where(eq(importBatches.id, batchId))
-		.get();
+	const row = orm.select().from(importBatches).where(eq(importBatches.id, batchId)).get();
 
 	return row ?? null;
 }
 
 export function updateImportBatchStatus(
 	batchId: string,
-	status: ImportBatchStatus
+	status: ImportBatchStatus,
 ): ImportBatch | null {
 	ensureReady();
 
 	const updates: Partial<ImportBatchInsert> = {
 		status,
-		updatedAt: nowIso()
+		updatedAt: nowIso(),
 	};
 
 	orm.update(importBatches).set(updates).where(eq(importBatches.id, batchId)).run();
@@ -160,7 +156,7 @@ export function insertImportedTransaction(input: {
 			matchMethod: input.matchMethod,
 			importBatchId: input.importBatchId,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -189,7 +185,7 @@ export function getTransactionById(transactionId: string): ImportedTransaction |
 			importBatchId: transactions.importBatchId,
 			importBatchSourceName: importBatches.sourceName,
 			createdAt: transactions.createdAt,
-			updatedAt: transactions.updatedAt
+			updatedAt: transactions.updatedAt,
 		})
 		.from(transactions)
 		.innerJoin(importBatches, eq(importBatches.id, transactions.importBatchId))
@@ -201,7 +197,7 @@ export function getTransactionById(transactionId: string): ImportedTransaction |
 }
 
 export function listReviewTransactions(
-	query: ListReviewTransactionsQuery = {}
+	query: ListReviewTransactionsQuery = {},
 ): ImportedTransaction[] {
 	ensureReady();
 
@@ -225,7 +221,7 @@ export function listReviewTransactions(
 			importBatchId: transactions.importBatchId,
 			importBatchSourceName: importBatches.sourceName,
 			createdAt: transactions.createdAt,
-			updatedAt: transactions.updatedAt
+			updatedAt: transactions.updatedAt,
 		})
 		.from(transactions)
 		.innerJoin(importBatches, eq(importBatches.id, transactions.importBatchId))
@@ -243,7 +239,7 @@ export function updateTransactionCategory(
 	input: {
 		categoryId: string | null;
 		matchMethod: TransactionMatchMethod;
-	}
+	},
 ): ImportedTransaction | null {
 	ensureReady();
 
@@ -252,7 +248,7 @@ export function updateTransactionCategory(
 		.set({
 			categoryId: input.categoryId,
 			matchMethod: input.matchMethod,
-			updatedAt: nowIso()
+			updatedAt: nowIso(),
 		})
 		.where(eq(transactions.id, transactionId))
 		.run();
@@ -261,7 +257,7 @@ export function updateTransactionCategory(
 }
 
 export function getMerchantCategoryRuleByNormalizedDescription(
-	normalizedDescription: string
+	normalizedDescription: string,
 ): MerchantCategoryRule | null {
 	ensureReady();
 
@@ -273,7 +269,7 @@ export function getMerchantCategoryRuleByNormalizedDescription(
 			categoryName: budgetCategories.name,
 			confidence: merchantCategoryRules.confidence,
 			createdAt: merchantCategoryRules.createdAt,
-			updatedAt: merchantCategoryRules.updatedAt
+			updatedAt: merchantCategoryRules.updatedAt,
 		})
 		.from(merchantCategoryRules)
 		.leftJoin(budgetCategories, eq(budgetCategories.id, merchantCategoryRules.categoryId))
@@ -300,7 +296,7 @@ export function upsertMerchantCategoryRule(input: {
 			.set({
 				categoryId: input.categoryId,
 				confidence,
-				updatedAt: timestamp
+				updatedAt: timestamp,
 			})
 			.where(eq(merchantCategoryRules.normalizedDescription, input.normalizedDescription))
 			.run();
@@ -313,7 +309,7 @@ export function upsertMerchantCategoryRule(input: {
 				categoryId: input.categoryId,
 				confidence,
 				createdAt: timestamp,
-				updatedAt: timestamp
+				updatedAt: timestamp,
 			})
 			.run();
 	}
@@ -327,7 +323,7 @@ export function upsertMerchantCategoryRule(input: {
 }
 
 export function findMostRecentCategorizedTransactionByNormalizedDescription(
-	normalizedDescription: string
+	normalizedDescription: string,
 ): ImportedTransaction | null {
 	ensureReady();
 
@@ -345,7 +341,7 @@ export function findMostRecentCategorizedTransactionByNormalizedDescription(
 			importBatchId: transactions.importBatchId,
 			importBatchSourceName: importBatches.sourceName,
 			createdAt: transactions.createdAt,
-			updatedAt: transactions.updatedAt
+			updatedAt: transactions.updatedAt,
 		})
 		.from(transactions)
 		.innerJoin(importBatches, eq(importBatches.id, transactions.importBatchId))
@@ -353,8 +349,8 @@ export function findMostRecentCategorizedTransactionByNormalizedDescription(
 		.where(
 			and(
 				eq(transactions.normalizedDescription, normalizedDescription),
-				isNotNull(transactions.categoryId)
-			)
+				isNotNull(transactions.categoryId),
+			),
 		)
 		.orderBy(desc(transactions.bookingDate), desc(transactions.createdAt))
 		.limit(1)

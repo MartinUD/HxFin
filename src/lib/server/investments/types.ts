@@ -5,5 +5,5 @@ export type {
 	InvestmentHolding,
 	ListInvestmentHoldingsQuery,
 	UpdateInvestmentAccountInput,
-	UpdateInvestmentHoldingInput
+	UpdateInvestmentHoldingInput,
 } from '$lib/schema/investments';

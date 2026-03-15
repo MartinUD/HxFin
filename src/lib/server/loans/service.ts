@@ -1,20 +1,19 @@
 import * as Effect from 'effect/Effect';
 
 import { notFoundError, persistenceError, validationError } from '$lib/effect/errors';
+import type {
+	CreateLoanInput,
+	ListLoansQuery,
+	LoanStatus,
+	UpdateLoanInput,
+} from '$lib/schema/loans';
 import {
 	createLoan,
 	deleteLoan,
 	getLoanById,
 	listLoans,
-	updateLoan
+	updateLoan,
 } from '$lib/server/loans/repository';
-import type {
-	CreateLoanInput,
-	ListLoansQuery,
-	Loan,
-	LoanStatus,
-	UpdateLoanInput
-} from '$lib/schema/loans';
 
 function normalizeNullableText(value: string | null | undefined): string | null | undefined {
 	if (value === undefined || value === null) {
@@ -40,7 +39,7 @@ function assertStatusAmount(status: LoanStatus, outstandingAmount: number): void
 export const listLoansEffect = (query: ListLoansQuery = {}) =>
 	Effect.try({
 		try: () => listLoans(query),
-		catch: () => persistenceError('Failed to load loans')
+		catch: () => persistenceError('Failed to load loans'),
 	});
 
 export const createLoanEffect = (input: CreateLoanInput) =>
@@ -60,13 +59,13 @@ export const createLoanEffect = (input: CreateLoanInput) =>
 				issueDate: input.issueDate,
 				dueDate: input.dueDate ?? null,
 				status,
-				notes: normalizeNullableText(input.notes) ?? null
+				notes: normalizeNullableText(input.notes) ?? null,
 			});
 		},
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to create loan')
+				: persistenceError('Failed to create loan'),
 	});
 
 export const updateLoanEffect = (loanId: string, input: UpdateLoanInput) =>
@@ -93,7 +92,7 @@ export const updateLoanEffect = (loanId: string, input: UpdateLoanInput) =>
 				...input,
 				counterparty: input.counterparty?.trim(),
 				currency: input.currency?.trim().toUpperCase(),
-				notes: normalizeNullableText(input.notes)
+				notes: normalizeNullableText(input.notes),
 			});
 
 			if (!updated) {
@@ -105,7 +104,7 @@ export const updateLoanEffect = (loanId: string, input: UpdateLoanInput) =>
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to update loan')
+				: persistenceError('Failed to update loan'),
 	});
 
 export const deleteLoanEffect = (loanId: string) =>
@@ -118,5 +117,5 @@ export const deleteLoanEffect = (loanId: string) =>
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to delete loan')
+				: persistenceError('Failed to delete loan'),
 	});

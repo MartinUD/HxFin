@@ -6,8 +6,8 @@
 
 	let { name, color }: Props = $props();
 
-	let bg = $derived(color ? color + '22' : 'var(--app-bg-input)');
-	let border = $derived(color ? color + '40' : 'var(--app-border)');
+	let bg = $derived(color ? `${color}22` : 'var(--app-bg-input)');
+	let border = $derived(color ? `${color}40` : 'var(--app-border)');
 	let textColor = $derived(color ?? 'var(--app-text-secondary)');
 </script>
 

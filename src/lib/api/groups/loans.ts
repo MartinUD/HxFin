@@ -7,26 +7,27 @@ import {
 	CreateLoanInputSchema,
 	ListLoansQuerySchema,
 	LoanSchema,
-	UpdateLoanInputSchema
+	UpdateLoanInputSchema,
 } from '$lib/schema/loans';
 
 export const loansApiGroup = HttpApiGroup.make('loans')
 	.add(
 		HttpApiEndpoint.get('listLoans', '/loans')
 			.setUrlParams(ListLoansQuerySchema)
-			.addSuccess(Schema.Array(LoanSchema))
+			.addSuccess(Schema.Array(LoanSchema)),
 	)
 	.add(
 		HttpApiEndpoint.post('createLoan', '/loans')
 			.setPayload(CreateLoanInputSchema)
-			.addSuccess(LoanSchema, { status: 201 })
+			.addSuccess(LoanSchema, { status: 201 }),
 	)
 	.add(
 		HttpApiEndpoint.patch('updateLoan')`/loans/${HttpApiSchema.param('loanId', Schema.String)}`
 			.setPayload(UpdateLoanInputSchema)
-			.addSuccess(LoanSchema)
+			.addSuccess(LoanSchema),
 	)
 	.add(
-		HttpApiEndpoint.del('deleteLoan')`/loans/${HttpApiSchema.param('loanId', Schema.String)}`
-			.addSuccess(HttpApiSchema.NoContent)
+		HttpApiEndpoint.del(
+			'deleteLoan',
+		)`/loans/${HttpApiSchema.param('loanId', Schema.String)}`.addSuccess(HttpApiSchema.NoContent),
 	);

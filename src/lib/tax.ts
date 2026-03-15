@@ -16,7 +16,7 @@ export interface TaxResult {
 
 export function calculateSwedishTax(
 	grossMonthlySalary: number,
-	kommunalskatt: number = DEFAULT_KOMMUNALSKATT
+	kommunalskatt: number = DEFAULT_KOMMUNALSKATT,
 ): TaxResult {
 	const grossYearly = grossMonthlySalary * 12;
 
@@ -55,9 +55,7 @@ export function calculateSwedishTax(
 	if (baseForJsa <= 0.91 * pbb) {
 		jobbskatteavdrag = baseForJsa * (kommunalskatt / 100);
 	} else if (baseForJsa <= 3.24 * pbb) {
-		jobbskatteavdrag =
-			0.91 * pbb * (kommunalskatt / 100) +
-			(baseForJsa - 0.91 * pbb) * 0.332;
+		jobbskatteavdrag = 0.91 * pbb * (kommunalskatt / 100) + (baseForJsa - 0.91 * pbb) * 0.332;
 	} else if (baseForJsa <= 8.08 * pbb) {
 		jobbskatteavdrag =
 			0.91 * pbb * (kommunalskatt / 100) +
@@ -89,15 +87,12 @@ export function calculateSwedishTax(
 		netMonthly: Math.round(netMonthly),
 		totalTaxMonthly: Math.round(totalTaxMonthly),
 		effectiveTaxRate: Math.round(effectiveTaxRate * 10) / 10,
-		marginalTaxRate: Math.round(marginalTaxRate * 10) / 10
+		marginalTaxRate: Math.round(marginalTaxRate * 10) / 10,
 	};
 }
 
 // Simplified version that just returns monthly tax (used for marginal calc to avoid recursion)
-function calculateSwedishTaxSimple(
-	grossMonthlySalary: number,
-	kommunalskatt: number
-): number {
+function calculateSwedishTaxSimple(grossMonthlySalary: number, kommunalskatt: number): number {
 	const grossYearly = grossMonthlySalary * 12;
 
 	let grundavdrag: number;
@@ -127,9 +122,7 @@ function calculateSwedishTaxSimple(
 	if (baseForJsa <= 0.91 * pbb) {
 		jobbskatteavdrag = baseForJsa * (kommunalskatt / 100);
 	} else if (baseForJsa <= 3.24 * pbb) {
-		jobbskatteavdrag =
-			0.91 * pbb * (kommunalskatt / 100) +
-			(baseForJsa - 0.91 * pbb) * 0.332;
+		jobbskatteavdrag = 0.91 * pbb * (kommunalskatt / 100) + (baseForJsa - 0.91 * pbb) * 0.332;
 	} else if (baseForJsa <= 8.08 * pbb) {
 		jobbskatteavdrag =
 			0.91 * pbb * (kommunalskatt / 100) +
@@ -149,12 +142,12 @@ function calculateSwedishTaxSimple(
 export function netRaiseFromGrossRaise(
 	currentGrossMonthly: number,
 	grossRaiseMonthly: number,
-	kommunalskatt: number = DEFAULT_KOMMUNALSKATT
+	kommunalskatt: number = DEFAULT_KOMMUNALSKATT,
 ): number {
 	const currentNet = calculateSwedishTax(currentGrossMonthly, kommunalskatt).netMonthly;
 	const newNet = calculateSwedishTax(
 		currentGrossMonthly + grossRaiseMonthly,
-		kommunalskatt
+		kommunalskatt,
 	).netMonthly;
 	return newNet - currentNet;
 }

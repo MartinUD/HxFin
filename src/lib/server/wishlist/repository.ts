@@ -11,7 +11,7 @@ import type {
 	UpdateWishlistCategoryInput,
 	UpdateWishlistItemInput,
 	WishlistCategory,
-	WishlistItem
+	WishlistItem,
 } from '$lib/server/wishlist/types';
 
 type WishlistCategoryInsert = typeof wishlistCategories.$inferInsert;
@@ -60,7 +60,7 @@ export function createWishlistCategory(input: CreateWishlistCategoryInput): Wish
 			name: input.name,
 			description: input.description,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -74,7 +74,7 @@ export function createWishlistCategory(input: CreateWishlistCategoryInput): Wish
 
 export function updateWishlistCategory(
 	categoryId: string,
-	input: UpdateWishlistCategoryInput
+	input: UpdateWishlistCategoryInput,
 ): WishlistCategory | null {
 	ensureReady();
 
@@ -94,11 +94,7 @@ export function updateWishlistCategory(
 
 	updates.updatedAt = nowIso();
 
-	orm
-		.update(wishlistCategories)
-		.set(updates)
-		.where(eq(wishlistCategories.id, categoryId))
-		.run();
+	orm.update(wishlistCategories).set(updates).where(eq(wishlistCategories.id, categoryId)).run();
 
 	return getWishlistCategoryById(categoryId);
 }
@@ -131,7 +127,7 @@ export function listWishlistItems(query: ListWishlistItemsQuery = {}): WishlistI
 			desc(wishlistItems.priority),
 			sql`${wishlistItems.targetDate} is null`,
 			asc(wishlistItems.targetDate),
-			desc(wishlistItems.createdAt)
+			desc(wishlistItems.createdAt),
 		)
 		.all();
 }
@@ -144,7 +140,7 @@ export function getWishlistItemById(itemId: string): WishlistItem | null {
 }
 
 export function createWishlistItem(
-	input: Omit<WishlistItem, 'id' | 'createdAt' | 'updatedAt'>
+	input: Omit<WishlistItem, 'id' | 'createdAt' | 'updatedAt'>,
 ): WishlistItem {
 	ensureReady();
 
@@ -166,7 +162,7 @@ export function createWishlistItem(
 			currency: 'SEK',
 			notes: input.notes,
 			createdAt: timestamp,
-			updatedAt: timestamp
+			updatedAt: timestamp,
 		})
 		.run();
 
@@ -180,7 +176,7 @@ export function createWishlistItem(
 
 export function updateWishlistItem(
 	itemId: string,
-	input: UpdateWishlistItemInput
+	input: UpdateWishlistItemInput,
 ): WishlistItem | null {
 	ensureReady();
 

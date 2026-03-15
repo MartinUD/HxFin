@@ -86,13 +86,13 @@
 	</div>
 
 	{#if grossRaise > 0}
-		<button class="preview-toggle" onclick={() => showPreview = !showPreview}>
+		<button type="button" class="preview-toggle" onclick={() => showPreview = !showPreview}>
 			Effekt efter år 1 {showPreview ? '▲' : '▼'}
 		</button>
 		{#if showPreview}
 		<div class="preview">
 			<div class="preview-title">
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
 				</svg>
 				Effekt efter år 1

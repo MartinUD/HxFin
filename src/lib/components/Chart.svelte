@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import {
-		Chart,
-		LineController,
 		BarController,
-		LineElement,
 		BarElement,
-		PointElement,
 		CategoryScale,
-		LinearScale,
+		Chart,
 		Filler,
-		Tooltip,
-		Legend
+		Legend, 
+		LinearScale,
+		LineController,
+		LineElement,
+		PointElement,
+		Tooltip
 	} from 'chart.js';
+	import { onDestroy, onMount } from 'svelte';
 	import type { YearResult } from '$lib/calculator';
 	import { formatNumber } from '$lib/calculator';
 

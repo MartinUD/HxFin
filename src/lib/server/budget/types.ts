@@ -6,9 +6,9 @@ export type {
 	CreateRecurringCostInput,
 	ListRecurringCostsQuery,
 	RecurrencePeriod,
-	RecurringCostKind,
 	RecurringCost,
+	RecurringCostKind,
 	SummaryQuery,
 	UpdateCategoryInput,
-	UpdateRecurringCostInput
+	UpdateRecurringCostInput,
 } from '$lib/schema/budget';

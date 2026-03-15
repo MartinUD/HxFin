@@ -2,6 +2,7 @@ import * as Effect from 'effect/Effect';
 
 import { notFoundError, persistenceError, validationError } from '$lib/effect/errors';
 import { roundToCurrencyCents, toMonthlyAmount } from '$lib/finance/recurrence';
+import type { UpdateCategoryInput, UpdateRecurringCostInput } from '$lib/schema/budget';
 import {
 	createCategory as createCategoryRow,
 	createRecurringCost as createRecurringCostRow,
@@ -12,20 +13,18 @@ import {
 	listCategories,
 	listRecurringCosts,
 	updateCategory as updateCategoryRow,
-	updateRecurringCost as updateRecurringCostRow
+	updateRecurringCost as updateRecurringCostRow,
 } from '$lib/server/budget/repository';
-import { getFinancialProfile } from '$lib/server/finance/repository';
-import { calculateSwedishTax } from '$lib/tax';
 import type {
 	BudgetSummary,
 	BudgetSummaryCategory,
 	CreateCategoryInput,
 	CreateRecurringCostInput,
 	ListRecurringCostsQuery,
-	RecurringCost,
-	SummaryQuery
+	SummaryQuery,
 } from '$lib/server/budget/types';
-import type { UpdateCategoryInput, UpdateRecurringCostInput } from '$lib/schema/budget';
+import { getFinancialProfile } from '$lib/server/finance/repository';
+import { calculateSwedishTax } from '$lib/tax';
 
 export function buildBudgetSummary(query: SummaryQuery = {}): BudgetSummary {
 	const categories = listCategories();
@@ -60,13 +59,13 @@ export function buildBudgetSummary(query: SummaryQuery = {}): BudgetSummary {
 				categoryId,
 				categoryName: categoryNameById.get(categoryId) ?? 'Uncategorized',
 				monthlyTotal: roundedMonthly,
-				yearlyTotal: roundToCurrencyCents(roundedMonthly * 12)
+				yearlyTotal: roundToCurrencyCents(roundedMonthly * 12),
 			};
 		})
 		.sort((left, right) => right.monthlyTotal - left.monthlyTotal);
 
 	const totalMonthlyRecurring = roundToCurrencyCents(
-		categoryBreakdown.reduce((accumulator, category) => accumulator + category.monthlyTotal, 0)
+		categoryBreakdown.reduce((accumulator, category) => accumulator + category.monthlyTotal, 0),
 	);
 	const roundedMonthlyEssential = roundToCurrencyCents(monthlyEssential);
 	const roundedMonthlyNonEssential = roundToCurrencyCents(monthlyNonEssential);
@@ -87,7 +86,7 @@ export function buildBudgetSummary(query: SummaryQuery = {}): BudgetSummary {
 		monthlyNetIncome,
 		monthlyUnallocated,
 		savingsRate,
-		categories: categoryBreakdown
+		categories: categoryBreakdown,
 	};
 }
 
@@ -109,7 +108,7 @@ function assertDateRange(startDate: string | null, endDate: string | null): void
 export const listCategoriesEffect = () =>
 	Effect.try({
 		try: () => listCategories(),
-		catch: () => persistenceError('Failed to load budget categories')
+		catch: () => persistenceError('Failed to load budget categories'),
 	});
 
 export const createCategoryEffect = (input: CreateCategoryInput) =>
@@ -118,9 +117,9 @@ export const createCategoryEffect = (input: CreateCategoryInput) =>
 			createCategoryRow({
 				name: input.name.trim(),
 				description: normalizeNullableText(input.description) ?? null,
-				color: normalizeNullableText(input.color) ?? null
+				color: normalizeNullableText(input.color) ?? null,
 			}),
-		catch: () => persistenceError('Failed to create budget category')
+		catch: () => persistenceError('Failed to create budget category'),
 	});
 
 export const updateCategoryEffect = (categoryId: string, input: UpdateCategoryInput) =>
@@ -137,7 +136,7 @@ export const updateCategoryEffect = (categoryId: string, input: UpdateCategoryIn
 			const category = updateCategoryRow(categoryId, {
 				name: input.name?.trim(),
 				description: normalizeNullableText(input.description),
-				color: normalizeNullableText(input.color)
+				color: normalizeNullableText(input.color),
 			});
 
 			if (!category) {
@@ -149,7 +148,7 @@ export const updateCategoryEffect = (categoryId: string, input: UpdateCategoryIn
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to update budget category')
+				: persistenceError('Failed to update budget category'),
 	});
 
 export const deleteCategoryEffect = (categoryId: string) =>
@@ -162,13 +161,13 @@ export const deleteCategoryEffect = (categoryId: string) =>
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to delete budget category')
+				: persistenceError('Failed to delete budget category'),
 	});
 
 export const listRecurringCostsEffect = (query: ListRecurringCostsQuery = {}) =>
 	Effect.try({
 		try: () => listRecurringCosts(query),
-		catch: () => persistenceError('Failed to load recurring costs')
+		catch: () => persistenceError('Failed to load recurring costs'),
 	});
 
 export const createRecurringCostEffect = (input: CreateRecurringCostInput) =>
@@ -188,13 +187,13 @@ export const createRecurringCostEffect = (input: CreateRecurringCostInput) =>
 				isEssential: kind === 'investment' ? false : (input.isEssential ?? false),
 				startDate,
 				endDate,
-				isActive: input.isActive ?? true
+				isActive: input.isActive ?? true,
 			});
 		},
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to create recurring cost')
+				: persistenceError('Failed to create recurring cost'),
 	});
 
 export const updateRecurringCostEffect = (costId: string, input: UpdateRecurringCostInput) =>
@@ -212,7 +211,7 @@ export const updateRecurringCostEffect = (costId: string, input: UpdateRecurring
 
 			const nextInput = {
 				...input,
-				name: input.name?.trim()
+				name: input.name?.trim(),
 			};
 			if (nextInput.kind === 'investment') {
 				nextInput.isEssential = false;
@@ -228,7 +227,7 @@ export const updateRecurringCostEffect = (costId: string, input: UpdateRecurring
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to update recurring cost')
+				: persistenceError('Failed to update recurring cost'),
 	});
 
 export const deleteRecurringCostEffect = (costId: string) =>
@@ -241,11 +240,11 @@ export const deleteRecurringCostEffect = (costId: string) =>
 		catch: (error) =>
 			error && typeof error === 'object' && '_tag' in error
 				? (error as never)
-				: persistenceError('Failed to delete recurring cost')
+				: persistenceError('Failed to delete recurring cost'),
 	});
 
 export const buildBudgetSummaryEffect = (query: SummaryQuery = {}) =>
 	Effect.try({
 		try: () => buildBudgetSummary(query),
-		catch: () => persistenceError('Failed to build budget summary')
+		catch: () => persistenceError('Failed to build budget summary'),
 	});

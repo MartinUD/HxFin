@@ -1,7 +1,7 @@
 <script lang="ts">
 	import InputField from '$lib/components/InputField.svelte';
-	import SalaryGrowth from '$lib/components/SalaryGrowth.svelte';
 	import LeverageSlider from '$lib/components/LeverageSlider.svelte';
+	import SalaryGrowth from '$lib/components/SalaryGrowth.svelte';
 
 	interface Props {
 		startCapital: number;
@@ -89,7 +89,7 @@
 				suffix="%"
 			/>
 			<div class="profile-actions">
-				<button class="profile-save-btn" onclick={onSaveIncomeProfile} disabled={profileSavePending}>
+				<button type="button" class="profile-save-btn" onclick={onSaveIncomeProfile} disabled={profileSavePending}>
 					{profileSavePending ? 'Saving...' : 'Save Income Profile'}
 				</button>
 				{#if profileSaveMessage}

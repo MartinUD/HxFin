@@ -40,7 +40,7 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_recurring_costs_is_active
 				ON recurring_costs (is_active);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260221_0002_financial_profile',
@@ -58,7 +58,7 @@ export const migrations: Migration[] = [
 					updated_at TEXT NOT NULL
 				);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260221_0003_investments_baseline',
@@ -102,18 +102,45 @@ export const migrations: Migration[] = [
 			db.prepare(
 				`INSERT INTO investment_accounts (
 					id, name, institution, currency, total_value, created_at, updated_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?)`
+				) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			).run(accountId, 'Nordea funds', 'Nordea', 'SEK', 700000, timestamp, timestamp);
 
 			const insertHolding = db.prepare(
 				`INSERT INTO investment_holdings (
 					id, account_id, name, allocation_percent, current_value, sort_order, created_at, updated_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			);
 
-			insertHolding.run('seed-holding-global', accountId, 'Global', 40, 280000, 0, timestamp, timestamp);
-			insertHolding.run('seed-holding-sweden', accountId, 'Sweden', 20, 140000, 1, timestamp, timestamp);
-			insertHolding.run('seed-holding-europe', accountId, 'Europe', 20, 140000, 2, timestamp, timestamp);
+			insertHolding.run(
+				'seed-holding-global',
+				accountId,
+				'Global',
+				40,
+				280000,
+				0,
+				timestamp,
+				timestamp,
+			);
+			insertHolding.run(
+				'seed-holding-sweden',
+				accountId,
+				'Sweden',
+				20,
+				140000,
+				1,
+				timestamp,
+				timestamp,
+			);
+			insertHolding.run(
+				'seed-holding-europe',
+				accountId,
+				'Europe',
+				20,
+				140000,
+				2,
+				timestamp,
+				timestamp,
+			);
 			insertHolding.run(
 				'seed-holding-emerging-markets',
 				accountId,
@@ -122,17 +149,17 @@ export const migrations: Migration[] = [
 				140000,
 				3,
 				timestamp,
-				timestamp
+				timestamp,
 			);
-		}
+		},
 	},
 	{
 		id: '20260221_0004_budget_is_essential',
 		description: 'Add essential flag to recurring costs for expense classification',
 		up: (db) => {
-			const columnRows = db
-				.prepare(`PRAGMA table_info(recurring_costs)`)
-				.all() as Array<{ name: string }>;
+			const columnRows = db.prepare(`PRAGMA table_info(recurring_costs)`).all() as Array<{
+				name: string;
+			}>;
 			const hasEssentialColumn = columnRows.some((column) => column.name === 'is_essential');
 
 			if (!hasEssentialColumn) {
@@ -141,15 +168,15 @@ export const migrations: Migration[] = [
 					ADD COLUMN is_essential INTEGER NOT NULL DEFAULT 0;
 				`);
 			}
-		}
+		},
 	},
 	{
 		id: '20260221_0005_budget_cost_kind',
 		description: 'Add kind to recurring costs to separate expenses and investments',
 		up: (db) => {
-			const columnRows = db
-				.prepare(`PRAGMA table_info(recurring_costs)`)
-				.all() as Array<{ name: string }>;
+			const columnRows = db.prepare(`PRAGMA table_info(recurring_costs)`).all() as Array<{
+				name: string;
+			}>;
 			const hasKindColumn = columnRows.some((column) => column.name === 'kind');
 
 			if (!hasKindColumn) {
@@ -163,7 +190,7 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_recurring_costs_kind
 				ON recurring_costs (kind);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260221_0006_loans',
@@ -194,7 +221,7 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_loans_due_date
 				ON loans (due_date);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260221_0007_wishlist',
@@ -224,7 +251,7 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_wishlist_linked_loan_id
 				ON wishlist_items (linked_loan_id);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260221_0008_transaction_imports',
@@ -282,15 +309,15 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_merchant_category_rules_category_id
 				ON merchant_category_rules (category_id);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260306_0009_investment_tracking',
 		description: 'Add tracker metadata and snapshots for investment holdings',
 		up: (db) => {
-			const holdingColumns = db
-				.prepare(`PRAGMA table_info(investment_holdings)`)
-				.all() as Array<{ name: string }>;
+			const holdingColumns = db.prepare(`PRAGMA table_info(investment_holdings)`).all() as Array<{
+				name: string;
+			}>;
 
 			const ensureHoldingColumn = (name: string, sql: string) => {
 				if (!holdingColumns.some((column) => column.name === name)) {
@@ -298,29 +325,26 @@ export const migrations: Migration[] = [
 				}
 			};
 
-			ensureHoldingColumn(
-				'units',
-				`ALTER TABLE investment_holdings ADD COLUMN units NUMERIC;`
-			);
+			ensureHoldingColumn('units', `ALTER TABLE investment_holdings ADD COLUMN units NUMERIC;`);
 			ensureHoldingColumn(
 				'latest_unit_price',
-				`ALTER TABLE investment_holdings ADD COLUMN latest_unit_price NUMERIC;`
+				`ALTER TABLE investment_holdings ADD COLUMN latest_unit_price NUMERIC;`,
 			);
 			ensureHoldingColumn(
 				'tracker_source',
-				`ALTER TABLE investment_holdings ADD COLUMN tracker_source TEXT NOT NULL DEFAULT 'manual' CHECK(tracker_source IN ('manual', 'nordea', 'avanza'));`
+				`ALTER TABLE investment_holdings ADD COLUMN tracker_source TEXT NOT NULL DEFAULT 'manual' CHECK(tracker_source IN ('manual', 'nordea', 'avanza'));`,
 			);
 			ensureHoldingColumn(
 				'tracker_url',
-				`ALTER TABLE investment_holdings ADD COLUMN tracker_url TEXT;`
+				`ALTER TABLE investment_holdings ADD COLUMN tracker_url TEXT;`,
 			);
 			ensureHoldingColumn(
 				'latest_price_date',
-				`ALTER TABLE investment_holdings ADD COLUMN latest_price_date TEXT;`
+				`ALTER TABLE investment_holdings ADD COLUMN latest_price_date TEXT;`,
 			);
 			ensureHoldingColumn(
 				'last_synced_at',
-				`ALTER TABLE investment_holdings ADD COLUMN last_synced_at TEXT;`
+				`ALTER TABLE investment_holdings ADD COLUMN last_synced_at TEXT;`,
 			);
 
 			db.exec(`
@@ -345,7 +369,7 @@ export const migrations: Migration[] = [
 					currentValue: 76484.17,
 					units: 40.28,
 					unitPrice: 1898.67,
-					url: 'https://www.nordeafunds.com/sv/fonder/emerging-markets-enhanced-bp'
+					url: 'https://www.nordeafunds.com/sv/fonder/emerging-markets-enhanced-bp',
 				},
 				{
 					id: 'seed-holding-europe',
@@ -353,7 +377,7 @@ export const migrations: Migration[] = [
 					currentValue: 79800.31,
 					units: 698.78,
 					unitPrice: 114.2,
-					url: 'https://www.nordeafunds.com/sv/fonder/europa-index-select-a'
+					url: 'https://www.nordeafunds.com/sv/fonder/europa-index-select-a',
 				},
 				{
 					id: 'seed-holding-global',
@@ -361,7 +385,7 @@ export const migrations: Migration[] = [
 					currentValue: 408176.23,
 					units: 685.8,
 					unitPrice: 595.19,
-					url: 'https://www.nordeafunds.com/sv/fonder/global-index-select-a'
+					url: 'https://www.nordeafunds.com/sv/fonder/global-index-select-a',
 				},
 				{
 					id: 'seed-holding-sweden',
@@ -369,8 +393,8 @@ export const migrations: Migration[] = [
 					currentValue: 131513.44,
 					units: 244.18,
 					unitPrice: 538.59,
-					url: 'https://www.nordeafunds.com/sv/fonder/sverige-passiv-a-a'
-				}
+					url: 'https://www.nordeafunds.com/sv/fonder/sverige-passiv-a-a',
+				},
 			];
 
 			const updateSeedHolding = db.prepare(`
@@ -388,7 +412,7 @@ export const migrations: Migration[] = [
 			`);
 
 			const existingSnapshotCount = db.prepare(
-				`SELECT COUNT(*) AS count FROM investment_holding_snapshots WHERE holding_id = ?`
+				`SELECT COUNT(*) AS count FROM investment_holding_snapshots WHERE holding_id = ?`,
 			);
 			const insertSnapshot = db.prepare(`
 				INSERT INTO investment_holding_snapshots (
@@ -404,7 +428,7 @@ export const migrations: Migration[] = [
 					units: seed.units,
 					unitPrice: seed.unitPrice,
 					url: seed.url,
-					timestamp
+					timestamp,
 				});
 
 				const snapshotCountRow = existingSnapshotCount.get(seed.id) as { count: number };
@@ -415,7 +439,7 @@ export const migrations: Migration[] = [
 						seed.currentValue,
 						seed.unitPrice,
 						seed.units,
-						timestamp
+						timestamp,
 					);
 				}
 			}
@@ -423,9 +447,9 @@ export const migrations: Migration[] = [
 			db.prepare(
 				`UPDATE investment_accounts
 				 SET total_value = ?, updated_at = ?
-				 WHERE id = 'seed-account-nordea-funds'`
+				 WHERE id = 'seed-account-nordea-funds'`,
 			).run(695974.15, timestamp);
-		}
+		},
 	},
 	{
 		id: '20260306_0010_avanza_seed_holdings',
@@ -436,7 +460,7 @@ export const migrations: Migration[] = [
 					`SELECT id
 					 FROM investment_accounts
 					 ORDER BY created_at ASC
-					 LIMIT 1`
+					 LIMIT 1`,
 				)
 				.get() as { id: string } | undefined;
 
@@ -453,7 +477,7 @@ export const migrations: Migration[] = [
 					units: 13.364279,
 					unitPrice: 226.2,
 					url: 'https://www.avanza.se/avanza-global',
-					sortOrder: 10
+					sortOrder: 10,
 				},
 				{
 					id: 'seed-holding-avanza-emerging-markets',
@@ -462,8 +486,8 @@ export const migrations: Migration[] = [
 					units: 6.304186,
 					unitPrice: 161.48,
 					url: 'https://www.avanza.se/avanza-emerging-markets',
-					sortOrder: 11
-				}
+					sortOrder: 11,
+				},
 			];
 
 			const existingHolding = db.prepare(`SELECT id FROM investment_holdings WHERE id = ?`);
@@ -474,7 +498,7 @@ export const migrations: Migration[] = [
 				) VALUES (?, ?, ?, ?, ?, ?, ?, 'avanza', ?, '2026-03-05', ?, ?, ?, ?)
 			`);
 			const snapshotExists = db.prepare(
-				`SELECT COUNT(*) AS count FROM investment_holding_snapshots WHERE holding_id = ?`
+				`SELECT COUNT(*) AS count FROM investment_holding_snapshots WHERE holding_id = ?`,
 			);
 			const insertSnapshot = db.prepare(`
 				INSERT INTO investment_holding_snapshots (
@@ -497,7 +521,7 @@ export const migrations: Migration[] = [
 						timestamp,
 						holding.sortOrder,
 						timestamp,
-						timestamp
+						timestamp,
 					);
 				}
 
@@ -509,11 +533,11 @@ export const migrations: Migration[] = [
 						holding.currentValue,
 						holding.unitPrice,
 						holding.units,
-						timestamp
+						timestamp,
 					);
 				}
 			}
-		}
+		},
 	},
 	{
 		id: '20260306_0011_rebalance_seed_weights',
@@ -525,7 +549,7 @@ export const migrations: Migration[] = [
 				['Nordea Europa Index Select A', 10],
 				['Nordea Emerging Markets Enhanced BP', 10],
 				['Avanza Global', 70],
-				['Avanza Emerging Markets', 30]
+				['Avanza Emerging Markets', 30],
 			] as const;
 
 			const updateHolding = db.prepare(`
@@ -539,15 +563,15 @@ export const migrations: Migration[] = [
 			for (const [name, allocation] of updates) {
 				updateHolding.run(allocation, timestamp, name);
 			}
-		}
+		},
 	},
 	{
 		id: '20260306_0012_wishlist_item_shape',
 		description: 'Add wishlist amount type, category, and numeric priority',
 		up: (db) => {
-			const wishlistColumns = db
-				.prepare(`PRAGMA table_info(wishlist_items)`)
-				.all() as Array<{ name: string }>;
+			const wishlistColumns = db.prepare(`PRAGMA table_info(wishlist_items)`).all() as Array<{
+				name: string;
+			}>;
 
 			const ensureColumn = (name: string, sql: string) => {
 				if (!wishlistColumns.some((column) => column.name === name)) {
@@ -557,17 +581,16 @@ export const migrations: Migration[] = [
 
 			ensureColumn(
 				'target_amount_type',
-				`ALTER TABLE wishlist_items ADD COLUMN target_amount_type TEXT NOT NULL DEFAULT 'exact' CHECK(target_amount_type IN ('exact', 'estimate'));`
+				`ALTER TABLE wishlist_items ADD COLUMN target_amount_type TEXT NOT NULL DEFAULT 'exact' CHECK(target_amount_type IN ('exact', 'estimate'));`,
 			);
-			ensureColumn(
-				'category',
-				`ALTER TABLE wishlist_items ADD COLUMN category TEXT;`
-			);
+			ensureColumn('category', `ALTER TABLE wishlist_items ADD COLUMN category TEXT;`);
 
 			const priorityColumn = wishlistColumns.find((column) => column.name === 'priority');
 			if (priorityColumn) {
 				const priorityTypeRow = db
-					.prepare(`SELECT typeof(priority) AS type FROM wishlist_items WHERE priority IS NOT NULL LIMIT 1`)
+					.prepare(
+						`SELECT typeof(priority) AS type FROM wishlist_items WHERE priority IS NOT NULL LIMIT 1`,
+					)
 					.get() as { type: string } | undefined;
 
 				if (!priorityTypeRow || priorityTypeRow.type !== 'integer') {
@@ -644,7 +667,7 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_wishlist_category
 				ON wishlist_items (category);
 			`);
-		}
+		},
 	},
 	{
 		id: '20260306_0013_wishlist_categories_and_strategy',
@@ -660,13 +683,15 @@ export const migrations: Migration[] = [
 				);
 			`);
 
-			const itemColumns = db
-				.prepare(`PRAGMA table_info(wishlist_items)`)
-				.all() as Array<{ name: string }>;
+			const itemColumns = db.prepare(`PRAGMA table_info(wishlist_items)`).all() as Array<{
+				name: string;
+			}>;
 
 			const hasCategoryId = itemColumns.some((column) => column.name === 'category_id');
 			if (!hasCategoryId) {
-				db.exec(`ALTER TABLE wishlist_items ADD COLUMN category_id TEXT REFERENCES wishlist_categories(id) ON DELETE SET NULL;`);
+				db.exec(
+					`ALTER TABLE wishlist_items ADD COLUMN category_id TEXT REFERENCES wishlist_categories(id) ON DELETE SET NULL;`,
+				);
 			}
 
 			const hasLegacyCategory = itemColumns.some((column) => column.name === 'category');
@@ -692,7 +717,12 @@ export const migrations: Migration[] = [
 
 				for (const row of legacyCategories) {
 					const timestamp = new Date().toISOString();
-					const categoryId = `wishlist-category-${row.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'general'}`;
+					const categoryId = `wishlist-category-${
+						row.category
+							.toLowerCase()
+							.replace(/[^a-z0-9]+/g, '-')
+							.replace(/^-|-$/g, '') || 'general'
+					}`;
 					insertCategory.run(categoryId, row.category, timestamp, timestamp);
 					const found = findCategoryId.get(row.category) as { id: string } | undefined;
 					if (found) {
@@ -765,6 +795,6 @@ export const migrations: Migration[] = [
 				CREATE INDEX IF NOT EXISTS idx_wishlist_category_id
 				ON wishlist_items (category_id);
 			`);
-		}
-	}
+		},
+	},
 ];

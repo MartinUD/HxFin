@@ -1,4 +1,4 @@
 export type {
 	FinancialProfile,
-	UpdateFinancialProfileInput
+	UpdateFinancialProfileInput,
 } from '$lib/schema/finance';

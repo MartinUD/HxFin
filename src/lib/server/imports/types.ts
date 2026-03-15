@@ -7,5 +7,5 @@ export type {
 	ListReviewTransactionsQuery,
 	MerchantCategoryRule,
 	TransactionMatchMethod,
-	UploadCsvResult
+	UploadCsvResult,
 } from '$lib/schema/imports';

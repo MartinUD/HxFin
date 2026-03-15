@@ -1,11 +1,11 @@
+import { toMonthlyAmount } from '$lib/budget';
 import type {
 	BudgetCategory,
 	BudgetSummary,
 	CreateRecurringCostInput,
 	RecurringCost,
-	UpdateRecurringCostInput
+	UpdateRecurringCostInput,
 } from '$lib/schema/budget';
-import { toMonthlyAmount } from '$lib/budget';
 
 export interface CostDialogFormState {
 	id: string;
@@ -20,10 +20,12 @@ export interface CostDialogFormState {
 
 export function filterActiveCosts(
 	costs: RecurringCost[],
-	selectedCategoryFilter: string
+	selectedCategoryFilter: string,
 ): RecurringCost[] {
 	return costs
-		.filter((cost) => selectedCategoryFilter === 'all' || cost.categoryId === selectedCategoryFilter)
+		.filter(
+			(cost) => selectedCategoryFilter === 'all' || cost.categoryId === selectedCategoryFilter,
+		)
 		.filter((cost) => cost.isActive);
 }
 
@@ -33,7 +35,7 @@ export function buildCategoryMap(categories: BudgetCategory[]): Map<string, Budg
 
 export function buildSummaryByCategory(summary: BudgetSummary): Map<string, number> {
 	return new Map<string, number>(
-		summary.categories.map((category) => [category.categoryId, category.monthlyTotal])
+		summary.categories.map((category) => [category.categoryId, category.monthlyTotal]),
 	);
 }
 
@@ -50,7 +52,7 @@ export function createEmptyCostDialogState(defaultCategoryId = ''): CostDialogFo
 		kind: 'expense',
 		categoryId: defaultCategoryId,
 		isEssential: false,
-		isActive: true
+		isActive: true,
 	};
 }
 
@@ -63,7 +65,7 @@ export function createCostDialogStateFromCost(cost: RecurringCost): CostDialogFo
 		kind: cost.kind,
 		categoryId: cost.categoryId,
 		isEssential: cost.isEssential,
-		isActive: cost.isActive
+		isActive: cost.isActive,
 	};
 }
 
@@ -77,7 +79,7 @@ export function buildCreateCostInput(dialog: CostDialogFormState): CreateRecurri
 		isEssential: dialog.isEssential,
 		startDate: new Date().toISOString().split('T')[0],
 		endDate: null,
-		isActive: true
+		isActive: true,
 	};
 }
 
@@ -89,14 +91,11 @@ export function buildUpdateCostInput(dialog: CostDialogFormState): UpdateRecurri
 		kind: dialog.kind,
 		categoryId: dialog.categoryId,
 		isEssential: dialog.isEssential,
-		isActive: dialog.isActive
+		isActive: dialog.isActive,
 	};
 }
 
-export function toBudgetErrorMessage(
-	error: unknown,
-	fallbackMessage: string
-): string {
+export function toBudgetErrorMessage(error: unknown, fallbackMessage: string): string {
 	if (error instanceof Error) {
 		const maybeHttpError = error as { code?: unknown; status?: unknown };
 		if (typeof maybeHttpError.code === 'string' && typeof maybeHttpError.status === 'number') {

@@ -6,7 +6,7 @@ import {
 	IsoDateTimeSchema,
 	NullableIsoDateSchema,
 	NullableStringSchema,
-	PositiveAmountSchema
+	PositiveAmountSchema,
 } from '$lib/schema/common';
 
 export const LoanDirectionSchema = Schema.Literal('lent', 'borrowed');
@@ -27,7 +27,7 @@ export const LoanSchema = Schema.Struct({
 	status: LoanStatusSchema,
 	notes: NullableStringSchema,
 	createdAt: IsoDateTimeSchema,
-	updatedAt: IsoDateTimeSchema
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type Loan = Schema.Schema.Type<typeof LoanSchema>;
@@ -41,7 +41,7 @@ export const CreateLoanInputSchema = Schema.Struct({
 	issueDate: IsoDateSchema,
 	dueDate: Schema.optional(NullableIsoDateSchema),
 	status: Schema.optional(LoanStatusSchema),
-	notes: Schema.optional(NullableStringSchema)
+	notes: Schema.optional(NullableStringSchema),
 });
 
 export type CreateLoanInput = Schema.Schema.Type<typeof CreateLoanInputSchema>;
@@ -55,14 +55,14 @@ export const UpdateLoanInputSchema = Schema.Struct({
 	issueDate: Schema.optional(IsoDateSchema),
 	dueDate: Schema.optional(NullableIsoDateSchema),
 	status: Schema.optional(LoanStatusSchema),
-	notes: Schema.optional(NullableStringSchema)
+	notes: Schema.optional(NullableStringSchema),
 });
 
 export type UpdateLoanInput = Schema.Schema.Type<typeof UpdateLoanInputSchema>;
 
 export const ListLoansQuerySchema = Schema.Struct({
 	direction: Schema.optional(LoanDirectionSchema),
-	status: Schema.optional(LoanStatusSchema)
+	status: Schema.optional(LoanStatusSchema),
 });
 
 export type ListLoansQuery = Schema.Schema.Type<typeof ListLoansQuerySchema>;

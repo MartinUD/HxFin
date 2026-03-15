@@ -1,7 +1,7 @@
 <script lang="ts" module>
-	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
-	import { type VariantProps, tv } from "tailwind-variants";
+	import { tv, type VariantProps } from "tailwind-variants";
+	import { cn, type WithElementRef } from "$lib/utils.js";
 
 	export const buttonVariants = tv({
 		base: "[font-family:var(--ds-font-body)] inline-flex shrink-0 items-center justify-center gap-2 rounded-[var(--app-radius-sm)] border border-transparent text-sm font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow] duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--app-accent-glow)] focus-visible:border-[var(--app-accent)] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -65,7 +65,6 @@
 		class={cn(buttonVariants({ variant, size }), className)}
 		href={disabled ? undefined : href}
 		aria-disabled={disabled}
-		role={disabled ? "link" : undefined}
 		tabindex={disabled ? -1 : undefined}
 		{...restProps}
 	>

@@ -9,11 +9,16 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:biome": "biome check .",
 		"db:generate": "drizzle-kit generate",
 		"db:pull": "drizzle-kit pull",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"fix:biome": "biome check --write .",
+		"format": "biome format --write .",
+		"lint": "biome lint ."
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^2.4.7",
 		"@internationalized/date": "^3.11.0",
 		"@lucide/svelte": "^0.561.0",
 		"@sveltejs/adapter-auto": "^4.0.0",

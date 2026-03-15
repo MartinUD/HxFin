@@ -4,5 +4,5 @@ export type {
 	Loan,
 	LoanDirection,
 	LoanStatus,
-	UpdateLoanInput
+	UpdateLoanInput,
 } from '$lib/schema/loans';

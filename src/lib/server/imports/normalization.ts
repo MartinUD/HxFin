@@ -9,7 +9,7 @@ function removeKnownPrefixes(value: string): string {
 		/^swish\s+betalning\s+/i,
 		/^swish\s+inbetalning\s+/i,
 		/^autogiro\s+/i,
-		/^betalning\s+bg\s+\S+\s+/i
+		/^betalning\s+bg\s+\S+\s+/i,
 	];
 
 	for (const pattern of patterns) {
