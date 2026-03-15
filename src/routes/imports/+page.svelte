@@ -133,8 +133,8 @@
 			)
 		]);
 
-		batches = nextBatches;
-		reviewTransactions = nextReviewTransactions;
+		batches = nextBatches.slice();
+		reviewTransactions = nextReviewTransactions.slice();
 	}
 
 	async function handleUploadCsv(): Promise<void> {

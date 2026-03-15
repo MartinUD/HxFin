@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { formatCurrency, toMonthlyAmount } from '$lib/budget';
-	import CategoryBadge from '$lib/components/budget/CategoryBadge.svelte';
 	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Table from '$lib/components/ui/table';
 	import type { BudgetCategory, RecurringCost } from '$lib/schema/budget';
@@ -15,6 +14,14 @@
 		onDeleteCost: (id: string) => void;
 	}
 
+	type SortDirection = 'asc' | 'desc';
+	type CostSortKey = 'name' | 'category' | 'type' | 'essential' | 'period' | 'amount' | 'monthly';
+
+	interface SortDefinition<T> {
+		defaultDirection: SortDirection;
+		compare: (left: T, right: T) => number;
+	}
+
 	let {
 		filteredCosts,
 		categoriesCount,
@@ -22,79 +29,116 @@
 		categoryMap,
 		filteredMonthlyTotal,
 		onEditCost,
-		onDeleteCost
+		onDeleteCost,
 	}: Props = $props();
 
-	type CostSortKey = 'name' | 'category' | 'type' | 'essential' | 'period' | 'amount' | 'monthly';
+	const periodRank: Record<RecurringCost['period'], number> = {
+		weekly: 0,
+		monthly: 1,
+		yearly: 2,
+	};
 
-	let sortState = $state<{ key: CostSortKey; direction: 'asc' | 'desc' }>({
+	let sortState = $state<{ key: CostSortKey; direction: SortDirection }>({
 		key: 'name',
-		direction: 'asc'
+		direction: 'asc',
 	});
 
+	const sortDefinitions: Record<CostSortKey, SortDefinition<RecurringCost>> = {
+		name: {
+			defaultDirection: 'asc',
+			compare: (left, right) => compareText(left.name, right.name),
+		},
+		category: {
+			defaultDirection: 'asc',
+			compare: (left, right) =>
+				compareNullableText(
+					categoryMap.get(left.categoryId)?.name ?? null,
+					categoryMap.get(right.categoryId)?.name ?? null,
+				),
+		},
+		type: {
+			defaultDirection: 'asc',
+			compare: (left, right) => compareText(left.kind, right.kind),
+		},
+		essential: {
+			defaultDirection: 'desc',
+			compare: (left, right) =>
+				compareBoolean(
+					left.kind !== 'investment' && left.isEssential,
+					right.kind !== 'investment' && right.isEssential,
+				),
+		},
+		period: {
+			defaultDirection: 'asc',
+			compare: (left, right) => compareNumber(periodRank[left.period], periodRank[right.period]),
+		},
+		amount: {
+			defaultDirection: 'desc',
+			compare: (left, right) => compareNumber(left.amount, right.amount),
+		},
+		monthly: {
+			defaultDirection: 'desc',
+			compare: (left, right) =>
+				compareNumber(
+					toMonthlyAmount(left.amount, left.period),
+					toMonthlyAmount(right.amount, right.period),
+				),
+		},
+	};
+
 	let sortedCosts = $derived(filteredCosts.slice().sort(sortCosts));
+
+	function compareText(left: string, right: string): number {
+		return left.localeCompare(right, undefined, { sensitivity: 'base' });
+	}
+
+	function compareNumber(left: number, right: number): number {
+		return left - right;
+	}
+
+	function compareBoolean(left: boolean, right: boolean): number {
+		return Number(left) - Number(right);
+	}
+
+	function compareNullableText(left: string | null, right: string | null): number {
+		if (left === null && right !== null) return 1;
+		if (left !== null && right === null) return -1;
+		if (left === null || right === null) return 0;
+		return compareText(left, right);
+	}
+
+	function compareByCreatedAtDesc(leftCreatedAt: string, rightCreatedAt: string): number {
+		return rightCreatedAt.localeCompare(leftCreatedAt);
+	}
+
+	function withDirection(comparison: number, direction: SortDirection): number {
+		return direction === 'asc' ? comparison : comparison * -1;
+	}
 
 	function toggleSort(key: CostSortKey): void {
 		if (sortState.key === key) {
 			sortState = {
 				key,
-				direction: sortState.direction === 'asc' ? 'desc' : 'asc'
+				direction: sortState.direction === 'asc' ? 'desc' : 'asc',
 			};
 			return;
 		}
 
 		sortState = {
 			key,
-			direction: key === 'name' || key === 'category' || key === 'type' || key === 'period' ? 'asc' : 'desc'
+			direction: sortDefinitions[key].defaultDirection,
 		};
 	}
 
 	function sortCosts(left: RecurringCost, right: RecurringCost): number {
-		const factor = sortState.direction === 'asc' ? 1 : -1;
-		let comparison = 0;
+		const definition = sortDefinitions[sortState.key];
+		const comparison = definition.compare(left, right);
+		const withTiebreak =
+			comparison === 0
+				? compareByCreatedAtDesc(left.createdAt, right.createdAt)
+				: comparison;
 
-		switch (sortState.key) {
-			case 'name':
-				comparison = left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
-				break;
-			case 'category':
-				comparison = (categoryMap.get(left.categoryId)?.name ?? '').localeCompare(categoryMap.get(right.categoryId)?.name ?? '', undefined, {
-					sensitivity: 'base'
-				});
-				break;
-			case 'type':
-				comparison = left.kind.localeCompare(right.kind);
-				break;
-			case 'essential':
-				comparison = Number(left.kind !== 'investment' && left.isEssential) - Number(right.kind !== 'investment' && right.isEssential);
-				break;
-			case 'period':
-				comparison = periodRank(left.period) - periodRank(right.period);
-				break;
-			case 'amount':
-				comparison = left.amount - right.amount;
-				break;
-			case 'monthly':
-				comparison = toMonthlyAmount(left.amount, left.period) - toMonthlyAmount(right.amount, right.period);
-				break;
-		}
-
-		if (comparison === 0) {
-			comparison = right.createdAt.localeCompare(left.createdAt);
-		}
-
-		return comparison * factor;
-	}
-
-	function periodRank(period: RecurringCost['period']): number {
-		switch (period) {
-			case 'weekly':
-				return 0;
-			case 'monthly':
-				return 1;
-			case 'yearly':
-				return 2;
-		}
+		return withDirection(withTiebreak, sortState.direction);
 	}
 </script>
 
@@ -118,10 +162,22 @@
 					<Table.Row class="border-border group">
 						<Table.Cell class="budget-table-cell font-medium text-foreground">{cost.name}</Table.Cell>
 						<Table.Cell class="budget-table-cell">
-							<CategoryBadge
-								name={categoryMap.get(cost.categoryId)?.name ?? 'Unknown'}
-								color={categoryMap.get(cost.categoryId)?.color ?? null}
-							/>
+							<span
+								class="category-badge"
+								style:background={
+									categoryMap.get(cost.categoryId)?.color
+										? `${categoryMap.get(cost.categoryId)?.color}22`
+										: 'var(--app-bg-input)'
+								}
+								style:border-color={
+									categoryMap.get(cost.categoryId)?.color
+										? `${categoryMap.get(cost.categoryId)?.color}40`
+										: 'var(--app-border)'
+								}
+								style:color={categoryMap.get(cost.categoryId)?.color ?? 'var(--app-text-secondary)'}
+							>
+								{categoryMap.get(cost.categoryId)?.name ?? 'Unknown'}
+							</span>
 						</Table.Cell>
 						<Table.Cell class="budget-table-cell">
 							<span class="kind-pill" class:kind-pill-investment={cost.kind === 'investment'}>
@@ -134,7 +190,7 @@
 								class:essential-pill-na={cost.kind === 'investment'}
 								class:essential-pill-on={cost.kind !== 'investment' && cost.isEssential}
 							>
-								{cost.kind === 'investment' ? 'N/A' : (cost.isEssential ? 'Yes' : 'No')}
+								{cost.kind === 'investment' ? 'N/A' : cost.isEssential ? 'Yes' : 'No'}
 							</span>
 						</Table.Cell>
 						<Table.Cell class="budget-table-cell text-muted-foreground capitalize text-[0.96rem]">{cost.period}</Table.Cell>
@@ -379,6 +435,18 @@
 		color: var(--app-text-muted);
 		background: rgba(255, 255, 255, 0.05);
 		border: 1px solid var(--app-border);
+	}
+
+	.category-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.34rem 0.95rem;
+		border-radius: 99px;
+		border: 1px solid;
+		font-size: 0.84rem;
+		font-weight: 600;
+		white-space: nowrap;
+		flex-shrink: 0;
 	}
 
 	.essential-pill-on {

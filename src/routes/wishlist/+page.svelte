@@ -182,13 +182,13 @@
 
 	async function refreshData(): Promise<void> {
 		const [nextItems, nextLoans, nextCategories] = await Promise.all([
-			apiRun((client) => client.wishlist.listWishlistItems()),
-			apiRun((client) => client.loans.listLoans()),
+			apiRun((client) => client.wishlist.listWishlistItems({ urlParams: {} })),
+			apiRun((client) => client.loans.listLoans({ urlParams: {} })),
 			apiRun((client) => client.wishlist.listWishlistCategories())
 		]);
-		items = nextItems;
-		loans = nextLoans;
-		categories = nextCategories;
+		items = nextItems.slice();
+		loans = nextLoans.slice();
+		categories = nextCategories.slice();
 	}
 	async function runMutation(action: () => Promise<void>, fallback: string): Promise<void> {
 		pending = true;

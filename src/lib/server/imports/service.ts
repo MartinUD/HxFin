@@ -1,7 +1,7 @@
 import * as Effect from 'effect/Effect';
 
 import { notFoundError, persistenceError } from '$lib/effect/errors';
-import { getCategoryById } from '$lib/server/budget/repository';
+import { getCategoryById } from '$lib/server/budget/categories.repository';
 import { parseNordeaTransactionsCsv } from '$lib/server/imports/csv';
 import { normalizeMerchantDescription } from '$lib/server/imports/normalization';
 import {

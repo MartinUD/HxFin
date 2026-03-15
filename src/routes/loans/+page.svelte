@@ -187,7 +187,7 @@
 	}
 
 	async function refreshLoans(): Promise<void> {
-		loans = await apiRun((client) => client.loans.listLoans());
+		loans = (await apiRun((client) => client.loans.listLoans({ urlParams: {} }))).slice();
 	}
 
 	async function runMutation(action: () => Promise<void>, fallbackMessage: string): Promise<void> {

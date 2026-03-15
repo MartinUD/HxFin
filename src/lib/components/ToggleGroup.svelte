@@ -8,20 +8,24 @@
 		label: string;
 		options: Option[];
 		value: string;
+		onValueChange?: (value: string) => void;
 	}
 
-	let { label, options, value = $bindable() }: Props = $props();
+	let { label, options, value = $bindable(), onValueChange }: Props = $props();
 </script>
 
 <div class="toggle-group">
 	<span class="toggle-label">{label}</span>
 	<div class="toggle-options">
-		{#each options as option}
+		{#each options as option (option.value)}
 			<button
 				type="button"
 				class="toggle-btn"
 				class:active={value === option.value}
-				onclick={() => (value = option.value)}
+				onclick={() => {
+					value = option.value;
+					onValueChange?.(option.value);
+				}}
 			>
 				{option.label}
 			</button>

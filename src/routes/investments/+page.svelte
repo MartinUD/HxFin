@@ -187,10 +187,10 @@
 	async function refreshPortfolio(): Promise<void> {
 		const [nextAccounts, nextHoldings] = await Promise.all([
 			apiRun((client) => client.investments.listInvestmentAccounts()),
-			apiRun((client) => client.investments.listInvestmentHoldings())
+			apiRun((client) => client.investments.listInvestmentHoldings({ urlParams: {} }))
 		]);
-		accounts = nextAccounts;
-		holdings = nextHoldings;
+		accounts = nextAccounts.slice();
+		holdings = nextHoldings.slice();
 	}
 
 	async function runPortfolioMutation(action: () => Promise<void>, fallback: string): Promise<void> {
@@ -294,7 +294,7 @@
 	async function handleRefreshTrackedPrices(): Promise<void> {
 		await runPortfolioMutation(async () => {
 			const report = await apiRun((client) => client.investments.refreshTrackedInvestmentHoldings());
-			holdings = report.holdings;
+			holdings = report.holdings.slice();
 		}, 'Failed to refresh tracked holdings');
 	}
 
