@@ -304,30 +304,30 @@
 
 <svelte:head><title>Wishlist — FinDash</title></svelte:head>
 
-<div class="wishlist-page">
-	<div class="topbar">
-		<div class="topbar-left">
-			<h1 class="page-title">Wishlist</h1>
-			<div class="filter-group" role="group" aria-label="Filter by strategy">
+<div class="app-page wishlist-page">
+	<div class="app-toolbar">
+		<div class="app-toolbar-left">
+			<h1 class="app-page-title">Wishlist</h1>
+			<div class="app-pill-group" role="group" aria-label="Filter by strategy">
 				{#each (['all', 'save', 'loan', 'mixed', 'buy_outright'] as const) as strategy (strategy)}
-					<button type="button" class="filter-chip" class:active={strategyFilter === strategy} onclick={() => (strategyFilter = strategy)}>
+					<button type="button" class="app-pill" class:is-active={strategyFilter === strategy} onclick={() => (strategyFilter = strategy)}>
 						{strategy === 'all' ? 'All' : STRATEGY_LABELS[strategy]}
 					</button>
 				{/each}
 			</div>
 			{#if categories.length > 0}
-				<div class="topbar-divider" aria-hidden="true"></div>
-				<div class="filter-group" role="group" aria-label="Filter by category">
-					<button type="button" class="filter-chip" class:active={selectedCategoryFilter === 'all'} onclick={() => (selectedCategoryFilter = 'all')}>All categories</button>
+				<div class="app-toolbar-divider" aria-hidden="true"></div>
+				<div class="app-pill-group" role="group" aria-label="Filter by category">
+					<button type="button" class="app-pill" class:is-active={selectedCategoryFilter === 'all'} onclick={() => (selectedCategoryFilter = 'all')}>All categories</button>
 					{#each categories as category (category.id)}
-						<button type="button" class="filter-chip" class:active={selectedCategoryFilter === category.id} onclick={() => (selectedCategoryFilter = category.id)}>{category.name}</button>
+						<button type="button" class="app-pill" class:is-active={selectedCategoryFilter === category.id} onclick={() => (selectedCategoryFilter = category.id)}>{category.name}</button>
 					{/each}
 				</div>
 			{/if}
 		</div>
-		<div class="topbar-right">
-			<Button size="sm" variant="outline" class="toolbar-action-btn" onclick={() => { addingCategory = false; editingCategoryId = null; categoriesDialogOpen = true; }}>Manage categories</Button>
-			<Button size="sm" variant="outline" class="toolbar-action-btn" onclick={openAddDialog}>+ Item</Button>
+		<div class="app-toolbar-right">
+			<Button size="sm" variant="outline" class="app-action-btn" onclick={() => { addingCategory = false; editingCategoryId = null; categoriesDialogOpen = true; }}>Manage categories</Button>
+			<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddDialog}>+ Item</Button>
 		</div>
 	</div>
 
@@ -340,8 +340,8 @@
 		</Alert.Root>
 	{/if}
 
-	<div class="table-shell rounded-lg border border-border overflow-hidden">
-		<div class="table-scroll">
+	<div class="app-table-shell rounded-lg border border-border overflow-hidden">
+		<div class="app-table-scroll">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row class="header-row border-border hover:bg-transparent">
@@ -378,7 +378,7 @@
 				</Table.Body>
 			</Table.Root>
 		</div>
-		<div class="table-total"><span class="table-total-label">Filtered target</span><span class="table-total-value">{formatSekAmount(filteredTargetTotal)}</span></div>
+		<div class="app-table-summary"><span class="app-table-summary-label">Filtered target</span><span class="app-table-summary-value">{formatSekAmount(filteredTargetTotal)}</span></div>
 	</div>
 </div>
 
@@ -399,7 +399,7 @@
 			<div class="form-field full"><Label class="field-label">Linked loan</Label><Select.Root type="single" value={formLinkedLoanId ?? '__none__'} onValueChange={(value: string) => (formLinkedLoanId = value === '__none__' ? null : value)}><Select.Trigger class="w-full bg-muted border-border text-foreground" disabled={formFundingStrategy === 'save' || formFundingStrategy === 'buy_outright'}>{formFundingStrategy === 'save' || formFundingStrategy === 'buy_outright' ? 'Not used for this strategy' : (formLinkedLoanId ? getLinkedLoanLabel(formLinkedLoanId) : 'No linked loan')}</Select.Trigger><Select.Content class="bg-card border-border"><Select.Item value="__none__" class="text-foreground cursor-pointer">No linked loan</Select.Item>{#each loans as loan (loan.id)}<Select.Item value={loan.id} class="text-foreground cursor-pointer">{loan.counterparty} ({loan.status})</Select.Item>{/each}</Select.Content></Select.Root></div>
 			<div class="form-field full"><Label class="field-label">Notes</Label><Input bind:value={formNotes} placeholder="Optional note" class="bg-muted border-border text-foreground" /></div>
 		</div>
-		<Dialog.Footer><Button variant="ghost" onclick={() => (dialogOpen = false)} class="text-muted-foreground">Cancel</Button><Button onclick={handleSave} disabled={pending || !formName.trim() || formTargetAmount < 0} class="toolbar-action-btn">{dialogMode === 'add' ? 'Add item' : 'Save'}</Button></Dialog.Footer>
+		<Dialog.Footer><Button variant="ghost" onclick={() => (dialogOpen = false)} class="text-muted-foreground">Cancel</Button><Button onclick={handleSave} disabled={pending || !formName.trim() || formTargetAmount < 0} class="app-action-btn">{dialogMode === 'add' ? 'Add item' : 'Save'}</Button></Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
 
@@ -427,7 +427,7 @@
 					<div class="row-actions always-visible"><Button size="sm" onclick={handleAddCategory} disabled={pending || !newCategoryName.trim()}>Add category</Button><Button size="sm" variant="ghost" onclick={() => (addingCategory = false)}>Cancel</Button></div>
 				</div>
 			{:else}
-				<Button size="sm" variant="outline" class="toolbar-action-btn" onclick={openAddCategory}>+ Category</Button>
+				<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddCategory}>+ Category</Button>
 			{/if}
 		</div>
 		<Dialog.Footer><Button onclick={() => { categoriesDialogOpen = false; addingCategory = false; editingCategoryId = null; }}>Done</Button></Dialog.Footer>
@@ -435,16 +435,7 @@
 </Dialog.Root>
 
 <style>
-	.wishlist-page { width: 100%; max-width: none; margin: 0; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 12px; min-height: 0; height: 100%; overflow: hidden; }
-	.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 4px 2px 10px; background: linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 94%, transparent), transparent 92%); }
-	.topbar-left, .topbar-right, .filter-group, .toggle-group, .spread { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-	.topbar-left { flex: 1 1 auto; min-width: 0; }
-	.page-title { margin: 0; font-family: var(--ds-font-display); font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; color: var(--app-text-primary); }
-	.topbar-divider { width: 1px; height: 2rem; background: var(--ds-glass-border); }
-	.filter-chip, .toggle-chip { height: 2.5rem; padding: 0.55rem 1rem; border-radius: 999px; border: 1px solid var(--ds-glass-border); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)), color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12,20,14,.14)); color: var(--app-text-secondary); font-size: .88rem; font-weight: 600; }
-	.filter-chip.active, .toggle-chip.active { color: var(--app-accent-light); border-color: color-mix(in oklab, var(--app-accent) 75%, var(--ds-glass-border)); background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.01)), color-mix(in oklab, var(--ds-accent) 14%, color-mix(in oklab, var(--ds-glass-surface) 82%, rgba(12,20,14,.1))); }
-	.table-shell { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)), var(--ds-glass-surface); backdrop-filter: blur(var(--ds-glass-blur)); -webkit-backdrop-filter: blur(var(--ds-glass-blur)); box-shadow: var(--ds-glass-shadow), inset 0 1px 0 var(--ds-glass-edge); border-color: var(--ds-glass-border); --table-container-bg: rgba(0,0,0,.08); --table-bg: transparent; --table-header-bg: rgba(0,0,0,.06); }
-	.table-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+	.toggle-group, .spread { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 	:global(.header-row) { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)), color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12,20,14,.14)); }
 	:global(.head) { height: 3.7rem; padding: 1.15rem 1.25rem; font-size: .82rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--app-text-secondary); }
 	:global(.cell) { padding: 1.15rem 1.25rem; vertical-align: middle; font-size: 1.06rem; }
@@ -463,10 +454,7 @@
 	:global(.group:hover) .row-actions, :global(.group:focus-within) .row-actions { opacity: 1; }
 	.row-action { display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.9rem; border-radius: .55rem; border: 1px solid var(--app-border); background: rgba(255,255,255,.025); color: var(--app-text-secondary); }
 	.row-action.danger:hover { color: var(--app-red); border-color: color-mix(in oklab, var(--app-red) 60%, var(--app-border)); }
-	.table-total { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 1.1rem 1rem; border-top: 1px solid var(--ds-glass-border); background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.12)), color-mix(in oklab, var(--ds-glass-surface) 92%, transparent); }
-	.table-total-label { font-family: var(--ds-font-display); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--app-text-muted); }
-	.table-total-value, .slider-value { font-family: var(--ds-font-mono); font-weight: 700; color: var(--app-accent-light); }
-	.table-total-value { font-size: 1.15rem; }
+	.slider-value { font-family: var(--ds-font-mono); font-weight: 700; color: var(--app-accent-light); }
 	:global(.empty-state) { padding: 4.5rem 1rem; text-align: center; font-size: .92rem; color: var(--app-text-muted); }
 	.dialog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
 	.form-field, .category-manager, .category-editor { display: flex; flex-direction: column; gap: .38rem; }
@@ -475,8 +463,6 @@
 	.clear-link { background: transparent; border: 0; padding: 0; font-size: .76rem; color: var(--app-text-muted); }
 	.category-row, .category-editor { display: flex; justify-content: space-between; gap: .75rem; padding: .75rem .85rem; border: 1px solid var(--ds-glass-border); border-radius: .8rem; background: rgba(255,255,255,.02); }
 	:global(.field-label) { font-size: .82rem; font-weight: 600; color: var(--app-text-secondary); }
-	:global(.toolbar-action-btn) { height: 2.8rem; padding-inline: 1rem; border-radius: .9rem; background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)), color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12,20,14,.16)); border-color: var(--ds-glass-border); color: var(--app-text-primary); font-weight: 600; }
-	@media (max-width: 960px) { .topbar-left, .topbar-right { width: 100%; } .topbar-divider { display: none; } }
-	@media (max-width: 768px) { .wishlist-page { padding-top: 68px; } .row-actions { opacity: 1; } }
-	@media (max-width: 640px) { .wishlist-page { padding: 16px 14px 32px; } .dialog-grid { grid-template-columns: 1fr; } .table-total { align-items: flex-start; flex-direction: column; } }
+	@media (max-width: 768px) { .row-actions { opacity: 1; } }
+	@media (max-width: 640px) { .dialog-grid { grid-template-columns: 1fr; } }
 </style>

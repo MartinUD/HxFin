@@ -6,3 +6,11 @@ build
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local financial data and ad-hoc imports
+data/*.db
+data/*.db-*
+data/*.sqlite*
+csv/*.csv
+tmp_avanza*.html
+tmp_avanza*.js

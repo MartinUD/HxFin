@@ -38,8 +38,6 @@
 	type ImportSortKey = 'date' | 'description' | 'normalized' | 'amount' | 'batch';
 
 	let totalImportedRows = $derived(batches.reduce((sum, batch) => sum + batch.rowCount, 0));
-	let completedBatchCount = $derived(batches.filter((batch) => batch.status === 'completed').length);
-	let failedBatchCount = $derived(batches.filter((batch) => batch.status === 'failed').length);
 	let sortedReviewTransactions = $derived(reviewTransactions.slice().sort(sortReviewTransactions));
 	let reviewCount = $derived(sortedReviewTransactions.length);
 
@@ -228,20 +226,29 @@
 	<title>Imports — FinDash</title>
 </svelte:head>
 
-<div class="imports-page">
-	<div class="page-header">
-		<div class="header-copy">
-			<div class="header-icon">
-				<svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M12 3v12" />
-					<path d="m7 10 5 5 5-5" />
-					<path d="M4 21h16" />
-				</svg>
+<div class="app-page imports-page">
+	<div class="app-toolbar">
+		<div class="app-toolbar-left">
+			<h1 class="app-page-title">Imports</h1>
+			<div class="app-pill-group review-summary" aria-label="Import summary">
+				<span class="summary-pill">{batches.length} batches</span>
+				<span class="summary-pill">{totalImportedRows} rows</span>
+				<span class="summary-pill">{reviewCount} in review</span>
 			</div>
-			<div>
-				<h1 class="page-title">CSV Imports</h1>
-				<p class="page-subtitle">Import monthly transactions, auto-categorize deterministically, then resolve the remaining review queue.</p>
-			</div>
+		</div>
+		<div class="app-toolbar-right import-actions">
+			<label class="file-input-wrap">
+				<span class="file-input-label">{selectedFile?.name ?? 'Choose CSV'}</span>
+				<input
+					type="file"
+					accept=".csv,text/csv"
+					onchange={onFileChange}
+					class="file-input"
+				/>
+			</label>
+			<Button class="app-action-btn" onclick={handleUploadCsv} disabled={uploadPending || !selectedFile}>
+				{uploadPending ? 'Importing...' : 'Import CSV'}
+			</Button>
 		</div>
 	</div>
 
@@ -263,55 +270,9 @@
 		</Alert.Root>
 	{/if}
 
-	<div class="summary-grid">
-		<div class="summary-card">
-			<p class="summary-label">Batches</p>
-			<p class="summary-value">{batches.length}</p>
-		</div>
-		<div class="summary-card">
-			<p class="summary-label">Rows Imported</p>
-			<p class="summary-value">{totalImportedRows}</p>
-		</div>
-		<div class="summary-card">
-			<p class="summary-label">Completed / Failed</p>
-			<p class="summary-value">{completedBatchCount} / {failedBatchCount}</p>
-		</div>
-		<div class="summary-card">
-			<p class="summary-label">Needs Review</p>
-			<p class="summary-value">{reviewCount}</p>
-		</div>
-	</div>
-
-	<div class="import-card">
-		<div class="import-card-copy">
-			<h2 class="section-title">Upload CSV</h2>
-			<p class="section-subtitle">Supported: Nordea semicolon exports with Swedish numeric/date formatting.</p>
-		</div>
-		<div class="import-card-actions">
-			<input
-				type="file"
-				accept=".csv,text/csv"
-				onchange={onFileChange}
-				class="file-input"
-			/>
-			<Button onclick={handleUploadCsv} disabled={uploadPending || !selectedFile}>
-				{uploadPending ? 'Importing...' : 'Import CSV'}
-			</Button>
-		</div>
-		{#if lastUploadResult}
-			<div class="last-import-summary">
-				<span>Last import: {lastUploadResult.batch.sourceName}</span>
-				<span>Inserted {lastUploadResult.summary.inserted}</span>
-				<span>Rule {lastUploadResult.summary.categorizedByRule}</span>
-				<span>History {lastUploadResult.summary.categorizedByHistory}</span>
-				<span>Review {lastUploadResult.summary.needsReview}</span>
-			</div>
-		{/if}
-	</div>
-
-	<div class="filter-bar">
+	<div class="filter-row">
 		<div class="filter-group">
-			<label for="batch-filter" class="filter-label">Batch</label>
+			<label for="batch-filter" class="filter-label">Batch filter</label>
 			<select id="batch-filter" class="filter-select" value={selectedBatchId} onchange={handleBatchFilterChange}>
 				<option value="all">All batches</option>
 				{#each batches as batch}
@@ -319,12 +280,20 @@
 				{/each}
 			</select>
 		</div>
+		{#if lastUploadResult}
+			<div class="last-import-summary">
+				<span>{lastUploadResult.batch.sourceName}</span>
+				<span>{lastUploadResult.summary.inserted} inserted</span>
+				<span>{lastUploadResult.summary.needsReview} review</span>
+			</div>
+		{/if}
 	</div>
 
-	<div class="table-shell rounded-lg border border-border overflow-hidden">
-		<Table.Root>
-			<Table.Header>
-				<Table.Row class="border-border hover:bg-transparent">
+	<div class="app-table-shell rounded-lg border border-border overflow-hidden">
+		<div class="app-table-scroll">
+			<Table.Root>
+				<Table.Header>
+					<Table.Row class="imports-header-row border-border hover:bg-transparent">
 					<SortableTableHead class="imports-head w-[10%]" label="Date" active={transactionSort.key === 'date'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('date')} />
 					<SortableTableHead class="imports-head w-[24%]" label="Description" active={transactionSort.key === 'description'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('description')} />
 					<SortableTableHead class="imports-head w-[14%]" label="Normalized" active={transactionSort.key === 'normalized'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('normalized')} />
@@ -332,11 +301,11 @@
 					<SortableTableHead class="imports-head w-[16%]" label="Batch" active={transactionSort.key === 'batch'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('batch')} />
 					<Table.Head class="imports-head w-[16%]">Category</Table.Head>
 					<Table.Head class="w-[10%]"></Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each sortedReviewTransactions as transaction (transaction.id)}
-					<Table.Row class="border-border">
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each sortedReviewTransactions as transaction (transaction.id)}
+						<Table.Row class="border-border">
 						<Table.Cell class="text-muted-foreground text-sm">{transaction.bookingDate}</Table.Cell>
 						<Table.Cell class="text-foreground text-sm">{transaction.description}</Table.Cell>
 						<Table.Cell class="text-muted-foreground text-xs">{transaction.normalizedDescription}</Table.Cell>
@@ -368,172 +337,98 @@
 								</button>
 							</div>
 						</Table.Cell>
-					</Table.Row>
-				{:else}
-					<Table.Row>
-						<Table.Cell colspan={7} class="text-center py-14 text-muted-foreground text-sm">
-							No transactions in review queue.
-						</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell colspan={7} class="text-center py-14 text-muted-foreground text-sm">
+								No transactions in review queue.
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
+		<div class="app-table-summary">
+			<span class="app-table-summary-label">Review queue</span>
+			<span class="app-table-summary-value">{reviewCount}</span>
+		</div>
 	</div>
 </div>
 
 <style>
 	.imports-page {
-		max-width: 1320px;
-		margin: 0 auto;
-		padding: 32px 24px 58px;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
+		gap: 14px;
 	}
 
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		border: 1px solid var(--ds-glass-border);
-		border-radius: 14px;
-		padding: 14px;
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: inset 0 1px 0 var(--ds-glass-edge);
-	}
-
-	.header-copy {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-	}
-
-	.header-icon {
-		width: 42px;
-		height: 42px;
-		border-radius: 12px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--app-accent-glow);
-		color: var(--app-accent-light);
-	}
-
-	.page-title {
-		font-family: var(--ds-font-display);
-		font-size: 1.4rem;
-		font-weight: 800;
-		letter-spacing: -0.025em;
-		color: var(--app-text-primary);
-	}
-
-	.page-subtitle {
-		margin-top: 2px;
-		font-size: 0.84rem;
-		color: var(--app-text-secondary);
-	}
-
-	.summary-grid {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 10px;
-	}
-
-	.summary-card {
-		padding: 11px 12px;
-		border-radius: 10px;
-		border: 1px solid var(--ds-glass-border);
-		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: var(--ds-shadow-sm), inset 0 1px 0 var(--ds-glass-edge);
-		display: flex;
-		flex-direction: column;
-		gap: 5px;
-	}
-
-	.summary-label {
-		font-size: 0.67rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		color: var(--app-text-muted);
-		text-transform: uppercase;
-	}
-
-	.summary-value {
-		font-size: 0.95rem;
-		font-weight: 700;
-		color: var(--app-text-primary);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.import-card {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		border: 1px solid var(--ds-glass-border);
-		border-radius: 12px;
-		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: inset 0 1px 0 var(--ds-glass-edge);
-		padding: 12px;
-	}
-
-	.import-card-copy {
-		display: flex;
-		flex-direction: column;
-		gap: 3px;
-	}
-
-	.section-title {
-		font-size: 0.96rem;
-		font-weight: 700;
-		color: var(--app-text-primary);
-	}
-
-	.section-subtitle {
-		font-size: 0.78rem;
-		color: var(--app-text-muted);
-	}
-
-	.import-card-actions {
+	.import-actions {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		flex-wrap: wrap;
 	}
 
-	.file-input {
+	.review-summary {
+		gap: 0.5rem;
+	}
+
+	.summary-pill {
+		display: inline-flex;
+		align-items: center;
+		height: 2.1rem;
+		padding: 0 0.8rem;
+		border-radius: 999px;
+		border: 1px solid var(--ds-glass-border);
+		background: rgba(255, 255, 255, 0.03);
 		color: var(--app-text-secondary);
-		font-size: 0.76rem;
-		padding: 5px 8px;
-		border-radius: 8px;
-		border: 1px solid var(--app-border);
-		background: rgba(0, 0, 0, 0.34);
+		font-size: 0.8rem;
+		font-weight: 600;
+	}
+
+	.file-input-wrap {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		height: 2.8rem;
+		padding: 0 0.95rem;
+		border-radius: 0.9rem;
+		border: 1px solid var(--ds-glass-border);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
+		color: var(--app-text-secondary);
+		font-size: 0.86rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.file-input-label {
+		max-width: 220px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.file-input {
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		cursor: pointer;
 	}
 
 	.last-import-summary {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
-		font-size: 0.72rem;
+		font-size: 0.78rem;
 		color: var(--app-text-secondary);
 	}
 
-	.filter-bar {
+	.filter-row {
 		display: flex;
 		align-items: center;
-		justify-content: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
 	}
 
 	.filter-group {
@@ -559,17 +454,10 @@
 		font-size: 0.76rem;
 	}
 
-	.table-shell {
+	:global(.imports-header-row) {
 		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: var(--ds-glass-shadow), inset 0 1px 0 var(--ds-glass-edge);
-		border-color: var(--ds-glass-border);
-		--table-container-bg: rgba(0, 0, 0, 0.08);
-		--table-bg: transparent;
-		--table-header-bg: rgba(0, 0, 0, 0.06);
+			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
+			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.14));
 	}
 
 	:global(.imports-head) {
@@ -622,25 +510,9 @@
 		cursor: not-allowed;
 	}
 
-	@media (max-width: 900px) {
-		.summary-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-
-	@media (max-width: 768px) {
-		.imports-page {
-			padding-top: 72px;
-		}
-	}
-
 	@media (max-width: 640px) {
-		.imports-page {
-			padding: 20px 16px 48px;
-		}
-
-		.summary-grid {
-			grid-template-columns: 1fr;
+		.file-input-label {
+			max-width: 150px;
 		}
 	}
 </style>

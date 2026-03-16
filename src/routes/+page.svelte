@@ -86,31 +86,49 @@
 	<title>FIRE Calc — FinDash</title>
 </svelte:head>
 
-<div class="page-shell">
-	<SettingsPanel
-		bind:startCapital
-		bind:monthlySaving
-		bind:monthlySalary
-		bind:salaryGrowth
-		bind:kommunalskatt
-		bind:savingsShareOfRaise
-		bind:avgReturn
-		bind:leverage
-		bind:years
-		bind:withdrawalRate
-		{profileSavePending}
-		{profileSaveMessage}
-		onSaveIncomeProfile={saveIncomeProfile}
-	/>
-	<ResultsPanel {results} {retirementYear} {withdrawalRate} />
+<div class="app-page fire-page">
+	<div class="app-toolbar">
+		<div class="app-toolbar-left">
+			<h1 class="app-page-title">FIRE Calculator</h1>
+		</div>
+	</div>
+	<div class="page-shell">
+		<SettingsPanel
+			bind:startCapital
+			bind:monthlySaving
+			bind:monthlySalary
+			bind:salaryGrowth
+			bind:kommunalskatt
+			bind:savingsShareOfRaise
+			bind:avgReturn
+			bind:leverage
+			bind:years
+			bind:withdrawalRate
+			{profileSavePending}
+			{profileSaveMessage}
+			onSaveIncomeProfile={saveIncomeProfile}
+		/>
+		<ResultsPanel {results} {retirementYear} {withdrawalRate} />
+	</div>
 </div>
 
 <style>
+	.fire-page {
+		gap: 10px;
+	}
+
 	.page-shell {
 		display: grid;
 		grid-template-columns: 276px minmax(0, 1fr);
-		height: 100%;
+		height: calc(100% - 0px);
+		min-height: 0;
 		overflow: hidden;
+		border: 1px solid var(--ds-glass-border);
+		border-radius: 14px;
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.008)),
+			color-mix(in oklab, var(--ds-bg-1) 90%, rgba(12, 20, 14, 0.18));
+		box-shadow: var(--ds-glass-shadow), inset 0 1px 0 var(--ds-glass-edge);
 	}
 
 	@media (max-width: 980px) {

@@ -428,10 +428,10 @@
 	<title>Investments — FinDash</title>
 </svelte:head>
 
-<div class="page">
-	<div class="topbar">
-		<div class="topbar-left">
-			<h1 class="page-title">Investments</h1>
+<div class="app-page page">
+	<div class="app-toolbar">
+		<div class="app-toolbar-left">
+			<h1 class="app-page-title">Investments</h1>
 			<div class="view-toggle" role="group" aria-label="Switch view">
 				<button
 					type="button"
@@ -447,7 +447,7 @@
 				>Projections</button>
 			</div>
 			{#if view === 'portfolio'}
-				<div class="topbar-divider" aria-hidden="true"></div>
+				<div class="app-toolbar-divider" aria-hidden="true"></div>
 				<div class="platform-filter" role="group" aria-label="Filter holdings by platform">
 					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'all'} onclick={() => (platformFilter = 'all')}>All</button>
 					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'nordea'} onclick={() => (platformFilter = 'nordea')}>Nordea</button>
@@ -457,7 +457,7 @@
 		</div>
 
 		{#if view === 'portfolio'}
-			<div class="topbar-right">
+			<div class="app-toolbar-right">
 				{#if trackedHoldingsCount > 0}
 					<div class="sync-chip">
 						<span class="sync-label">Tracked holdings</span>
@@ -466,7 +466,7 @@
 					<Button
 						size="sm"
 						variant="outline"
-						class="toolbar-action-btn"
+						class="app-action-btn"
 						onclick={handleRefreshTrackedPrices}
 						disabled={portfolioPending}
 					>
@@ -475,12 +475,12 @@
 				{/if}
 
 				{#if defaultAccountId}
-					<Button size="sm" variant="outline" class="toolbar-action-btn" onclick={openAddHoldingDialog}>+ Holding</Button>
+					<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddHoldingDialog}>+ Holding</Button>
 				{/if}
 			</div>
 		{:else}
-			<div class="topbar-right">
-				<Button size="sm" variant="outline" class="toolbar-action-btn" onclick={saveProjectionPreset}>
+			<div class="app-toolbar-right">
+				<Button size="sm" variant="outline" class="app-action-btn" onclick={saveProjectionPreset}>
 					Save
 				</Button>
 			</div>
@@ -505,8 +505,8 @@
 
 			{#if defaultAccountId}
 				<div class="portfolio-grid">
-					<div class="table-shell rounded-lg border border-border overflow-hidden">
-						<div class="table-scroll">
+					<div class="app-table-shell rounded-lg border border-border overflow-hidden">
+						<div class="app-table-scroll">
 							<Table.Root class="portfolio-table">
 								<Table.Header>
 									<Table.Row class="portfolio-header-row border-border hover:bg-transparent">
@@ -579,9 +579,9 @@
 								</Table.Body>
 							</Table.Root>
 						</div>
-						<div class="table-total">
-							<span class="table-total-label">Total</span>
-							<span class="table-total-value">{formatCurrency(selectedHoldingsTotal)}</span>
+						<div class="app-table-summary">
+							<span class="app-table-summary-label">Total</span>
+							<span class="app-table-summary-value">{formatCurrency(selectedHoldingsTotal)}</span>
 						</div>
 					</div>
 
@@ -708,59 +708,11 @@
 
 <style>
 	.page {
-		width: 100%;
-		max-width: none;
-		margin: 0;
-		padding: 14px 16px 18px;
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
 		min-height: 0;
 		height: 100%;
 		overflow: hidden;
-	}
-
-	.topbar {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		padding: 4px 2px 8px;
-	}
-
-	.topbar-left,
-	.topbar-right {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		flex-wrap: wrap;
-	}
-
-	.topbar-left {
-		flex: 1 1 auto;
-		min-width: 0;
-	}
-
-	.topbar-right {
-		flex: 0 0 auto;
-		justify-content: flex-end;
-	}
-
-	.page-title {
-		font-family: var(--ds-font-display);
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-		color: var(--app-text-primary);
-		margin: 0;
-	}
-
-	.topbar-divider {
-		width: 1px;
-		height: 2rem;
-		background: var(--ds-glass-border);
-		flex: 0 0 auto;
 	}
 
 	/* ── Segmented toggle ── */
@@ -872,26 +824,6 @@
 		white-space: nowrap;
 	}
 
-	:global(.toolbar-action-btn) {
-		height: 2.8rem;
-		padding-inline: 1rem;
-		border-radius: 0.9rem;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
-		border-color: var(--ds-glass-border);
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-		color: var(--app-text-primary);
-		font-size: 0.92rem;
-		font-weight: 700;
-	}
-
-	:global(.toolbar-action-btn:hover) {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
-			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.1));
-	}
-
 	:global(.field-label) {
 		font-size: 0.82rem;
 		font-weight: 600;
@@ -927,30 +859,6 @@
 		letter-spacing: 0;
 		text-transform: none;
 		color: var(--app-text-secondary);
-	}
-
-	.table-shell {
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-		height: 100%;
-		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: var(--ds-glass-shadow), inset 0 1px 0 var(--ds-glass-edge);
-		border-color: var(--ds-glass-border);
-		--table-container-bg: rgba(0, 0, 0, 0.08);
-		--table-header-bg: rgba(0, 0, 0, 0.06);
-	}
-
-	.table-scroll {
-		flex: 1 1 auto;
-		min-height: 0;
-		overflow: auto;
-		overscroll-behavior: contain;
-		scrollbar-gutter: stable;
 	}
 
 	:global(.portfolio-table table) {
@@ -1000,35 +908,6 @@
 	:global(.holding-name-cell) {
 		font-size: 1.16rem;
 		font-weight: 700;
-	}
-
-	.table-total {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.9rem 1.25rem 1rem;
-		border-top: 1px solid var(--ds-glass-border);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12)),
-			color-mix(in oklab, var(--ds-glass-surface) 92%, transparent);
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-	}
-
-	.table-total-label {
-		color: var(--app-text-muted);
-		font-family: var(--ds-font-display);
-		font-size: 0.72rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	.table-total-value {
-		font-family: var(--ds-font-mono);
-		font-size: 1.2rem;
-		font-weight: 700;
-		color: var(--app-accent-light);
-		font-variant-numeric: tabular-nums;
 	}
 
 	.holding-actions {
@@ -1127,18 +1006,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.page { padding-top: 68px; }
-		.topbar-left,
-		.topbar-right {
-			width: 100%;
-			flex-wrap: wrap;
-		}
-		.topbar-right {
-			justify-content: flex-start;
-		}
-		.topbar-divider {
-			display: none;
-		}
 		.proj-toolbar {
 			flex-wrap: wrap;
 			align-items: flex-start;
@@ -1146,6 +1013,5 @@
 	}
 
 	@media (max-width: 640px) {
-		.page { padding: 16px 14px 32px; }
 	}
 </style>

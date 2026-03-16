@@ -282,29 +282,29 @@
 	<title>Loans — FinDash</title>
 </svelte:head>
 
-<div class="loans-page">
-	<div class="topbar">
-		<div class="topbar-left">
-			<h1 class="page-title">Loans</h1>
+<div class="app-page loans-page">
+	<div class="app-toolbar">
+		<div class="app-toolbar-left">
+			<h1 class="app-page-title">Loans</h1>
 
-			<div class="filter-group" role="group" aria-label="Filter by status">
-				<button type="button" class="filter-chip" class:active={statusFilter === 'all'} onclick={() => (statusFilter = 'all')}>All</button>
-				<button type="button" class="filter-chip" class:active={statusFilter === 'open'} onclick={() => (statusFilter = 'open')}>Open</button>
-				<button type="button" class="filter-chip" class:active={statusFilter === 'overdue'} onclick={() => (statusFilter = 'overdue')}>Overdue</button>
-				<button type="button" class="filter-chip" class:active={statusFilter === 'paid'} onclick={() => (statusFilter = 'paid')}>Paid</button>
+			<div class="app-pill-group" role="group" aria-label="Filter by status">
+				<button type="button" class="app-pill" class:is-active={statusFilter === 'all'} onclick={() => (statusFilter = 'all')}>All</button>
+				<button type="button" class="app-pill" class:is-active={statusFilter === 'open'} onclick={() => (statusFilter = 'open')}>Open</button>
+				<button type="button" class="app-pill" class:is-active={statusFilter === 'overdue'} onclick={() => (statusFilter = 'overdue')}>Overdue</button>
+				<button type="button" class="app-pill" class:is-active={statusFilter === 'paid'} onclick={() => (statusFilter = 'paid')}>Paid</button>
 			</div>
 
-			<div class="topbar-divider" aria-hidden="true"></div>
+			<div class="app-toolbar-divider" aria-hidden="true"></div>
 
-			<div class="filter-group" role="group" aria-label="Filter by direction">
-				<button type="button" class="filter-chip" class:active={directionFilter === 'all'} onclick={() => (directionFilter = 'all')}>All directions</button>
-				<button type="button" class="filter-chip" class:active={directionFilter === 'lent'} onclick={() => (directionFilter = 'lent')}>Lent</button>
-				<button type="button" class="filter-chip" class:active={directionFilter === 'borrowed'} onclick={() => (directionFilter = 'borrowed')}>Borrowed</button>
+			<div class="app-pill-group" role="group" aria-label="Filter by direction">
+				<button type="button" class="app-pill" class:is-active={directionFilter === 'all'} onclick={() => (directionFilter = 'all')}>All directions</button>
+				<button type="button" class="app-pill" class:is-active={directionFilter === 'lent'} onclick={() => (directionFilter = 'lent')}>Lent</button>
+				<button type="button" class="app-pill" class:is-active={directionFilter === 'borrowed'} onclick={() => (directionFilter = 'borrowed')}>Borrowed</button>
 			</div>
 		</div>
 
-		<div class="topbar-right">
-			<Button size="sm" variant="outline" class="toolbar-action-btn" onclick={openAddDialog}>
+		<div class="app-toolbar-right">
+			<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddDialog}>
 				+ Loan
 			</Button>
 		</div>
@@ -319,8 +319,8 @@
 		</Alert.Root>
 	{/if}
 
-	<div class="table-shell rounded-lg border border-border overflow-hidden">
-		<div class="table-scroll">
+	<div class="app-table-shell rounded-lg border border-border overflow-hidden">
+		<div class="app-table-scroll">
 			<Table.Root class="loans-table">
 				<Table.Header>
 					<Table.Row class="loans-header-row border-border hover:bg-transparent">
@@ -411,12 +411,12 @@
 			</Table.Root>
 		</div>
 
-		<div class="table-total">
+		<div class="app-table-summary">
 			<div class="table-total-copy">
-				<span class="table-total-label">Filtered outstanding</span>
+				<span class="app-table-summary-label">Filtered outstanding</span>
 				<span class="table-total-count">{filteredLoans.length} records</span>
 			</div>
-			<span class="table-total-value">{formatAmount(filteredOutstandingTotal, 'SEK')}</span>
+			<span class="app-table-summary-value">{formatAmount(filteredOutstandingTotal, 'SEK')}</span>
 		</div>
 	</div>
 </div>
@@ -503,7 +503,7 @@
 			<Button
 				onclick={handleSave}
 				disabled={pending || !formCounterparty.trim() || formPrincipalAmount < 0 || formOutstandingAmount < 0}
-				class="toolbar-action-btn"
+				class="app-action-btn"
 			>
 				{dialogMode === 'add' ? 'Add loan' : 'Save'}
 			</Button>
@@ -512,125 +512,6 @@
 </Dialog.Root>
 
 <style>
-	.loans-page {
-		width: 100%;
-		max-width: none;
-		margin: 0;
-		padding: 14px 16px 18px;
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		min-height: 0;
-		height: 100%;
-		overflow: hidden;
-	}
-
-	.topbar {
-		position: sticky;
-		top: 0;
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 14px;
-		flex-wrap: wrap;
-		padding: 4px 2px 10px;
-		background: linear-gradient(180deg, color-mix(in oklab, var(--app-bg) 94%, transparent), transparent 92%);
-	}
-
-	.topbar-left,
-	.topbar-right {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		flex-wrap: wrap;
-	}
-
-	.topbar-left {
-		flex: 1 1 auto;
-		min-width: 0;
-	}
-
-	.topbar-right {
-		flex: 0 0 auto;
-		justify-content: flex-end;
-	}
-
-	.page-title {
-		margin: 0;
-		font-family: var(--ds-font-display);
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.02em;
-		color: var(--app-text-primary);
-	}
-
-	.topbar-divider {
-		width: 1px;
-		height: 2rem;
-		background: var(--ds-glass-border);
-		flex: 0 0 auto;
-	}
-
-	.filter-group {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		flex-wrap: wrap;
-	}
-
-	.filter-chip {
-		height: 2.5rem;
-		padding: 0.55rem 1rem;
-		border-radius: 999px;
-		border: 1px solid var(--ds-glass-border);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.14));
-		color: var(--app-text-secondary);
-		font-size: 0.88rem;
-		font-weight: 600;
-		transition: color 0.16s var(--ds-ease), border-color 0.16s var(--ds-ease), background-color 0.16s var(--ds-ease);
-	}
-
-	.filter-chip:hover {
-		color: var(--app-text-primary);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
-			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.1));
-	}
-
-	.filter-chip.active {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-accent) 14%, color-mix(in oklab, var(--ds-glass-surface) 82%, rgba(12, 20, 14, 0.1)));
-		color: var(--app-accent-light);
-		border-color: color-mix(in oklab, var(--app-accent) 75%, var(--ds-glass-border));
-	}
-
-	.table-shell {
-		flex: 1 1 auto;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: var(--ds-glass-shadow), inset 0 1px 0 var(--ds-glass-edge);
-		border-color: var(--ds-glass-border);
-		--table-container-bg: rgba(0, 0, 0, 0.08);
-		--table-bg: transparent;
-		--table-header-bg: rgba(0, 0, 0, 0.06);
-	}
-
-	.table-scroll {
-		flex: 1 1 auto;
-		min-height: 0;
-		overflow: auto;
-	}
-
 	:global(.loans-header-row) {
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
@@ -793,20 +674,6 @@
 		border-color: color-mix(in oklab, var(--app-red) 60%, var(--app-border));
 	}
 
-	.table-total {
-		position: sticky;
-		bottom: 0;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.9rem 1.1rem 1rem;
-		border-top: 1px solid var(--ds-glass-border);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12)),
-			color-mix(in oklab, var(--ds-glass-surface) 92%, transparent);
-	}
-
 	.table-total-copy {
 		display: flex;
 		align-items: baseline;
@@ -814,26 +681,9 @@
 		flex-wrap: wrap;
 	}
 
-	.table-total-label {
-		font-family: var(--ds-font-display);
-		font-size: 0.72rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--app-text-muted);
-	}
-
 	.table-total-count {
 		font-size: 0.8rem;
 		color: var(--app-text-secondary);
-	}
-
-	.table-total-value {
-		font-family: var(--ds-font-mono);
-		font-size: 1.15rem;
-		font-weight: 700;
-		color: var(--app-accent-light);
-		font-variant-numeric: tabular-nums;
 	}
 
 	:global(.empty-state) {
@@ -865,62 +715,15 @@
 		color: var(--app-text-secondary);
 	}
 
-	:global(.toolbar-action-btn) {
-		height: 2.8rem;
-		padding-inline: 1rem;
-		border-radius: 0.9rem;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
-		border-color: var(--ds-glass-border);
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-		color: var(--app-text-primary);
-		font-weight: 600;
-	}
-
-	:global(.toolbar-action-btn:hover) {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
-			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.1));
-	}
-
-	@media (max-width: 960px) {
-		.topbar-left,
-		.topbar-right {
-			width: 100%;
-		}
-
-		.topbar-right {
-			justify-content: flex-start;
-		}
-
-		.topbar-divider {
-			display: none;
-		}
-	}
-
 	@media (max-width: 768px) {
-		.loans-page {
-			padding-top: 68px;
-		}
-
 		.row-actions {
 			opacity: 1;
 		}
 	}
 
 	@media (max-width: 640px) {
-		.loans-page {
-			padding: 16px 14px 32px;
-		}
-
 		.dialog-grid {
 			grid-template-columns: 1fr;
-		}
-
-		.table-total {
-			align-items: flex-start;
-			flex-direction: column;
 		}
 	}
 </style>
