@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { and, desc, eq } from 'drizzle-orm';
+import * as Context from 'effect/Context';
+import * as Effect from 'effect/Effect';
+import * as Layer from 'effect/Layer';
+
+import { type PersistenceError, persistenceError } from '$lib/effect/errors';
 import type {
 	CreateRecurringCostInput,
 	ListRecurringCostsQuery,
@@ -138,4 +143,44 @@ export function deleteRecurringCost(costId: string): boolean {
 
 	orm.delete(recurringCosts).where(eq(recurringCosts.id, costId)).run();
 	return true;
+}
+
+function tryPersistence<A>(message: string, evaluate: () => A): Effect.Effect<A, PersistenceError> {
+	return Effect.try({
+		try: evaluate,
+		catch: () => persistenceError(message),
+	});
+}
+
+export class BudgetRecurringCostsRepository extends Context.Tag('BudgetRecurringCostsRepository')<
+	BudgetRecurringCostsRepository,
+	{
+		readonly listRecurringCosts: (
+			query?: ListRecurringCostsQuery,
+		) => Effect.Effect<RecurringCost[], PersistenceError>;
+		readonly getRecurringCostById: (
+			costId: string,
+		) => Effect.Effect<RecurringCost | null, PersistenceError>;
+		readonly createRecurringCost: (
+			input: CreateRecurringCostInput,
+		) => Effect.Effect<RecurringCost, PersistenceError>;
+		readonly updateRecurringCost: (
+			costId: string,
+			input: UpdateRecurringCostInput,
+		) => Effect.Effect<RecurringCost | null, PersistenceError>;
+		readonly deleteRecurringCost: (costId: string) => Effect.Effect<boolean, PersistenceError>;
+	}
+>() {
+	static readonly Live = Layer.succeed(this, {
+		listRecurringCosts: (query: ListRecurringCostsQuery = {}) =>
+			tryPersistence('Failed to load recurring costs', () => listRecurringCosts(query)),
+		getRecurringCostById: (costId: string) =>
+			tryPersistence('Failed to load recurring cost', () => getRecurringCostById(costId)),
+		createRecurringCost: (input: CreateRecurringCostInput) =>
+			tryPersistence('Failed to create recurring cost', () => createRecurringCost(input)),
+		updateRecurringCost: (costId: string, input: UpdateRecurringCostInput) =>
+			tryPersistence('Failed to update recurring cost', () => updateRecurringCost(costId, input)),
+		deleteRecurringCost: (costId: string) =>
+			tryPersistence('Failed to delete recurring cost', () => deleteRecurringCost(costId)),
+	});
 }

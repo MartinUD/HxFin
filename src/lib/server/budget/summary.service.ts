@@ -3,15 +3,24 @@ import * as Effect from 'effect/Effect';
 import { persistenceError } from '$lib/effect/errors';
 import { roundToCurrencyCents, toMonthlyAmount } from '$lib/finance/recurrence';
 import type { BudgetSummary, BudgetSummaryCategory, SummaryQuery } from '$lib/schema/budget';
-import { listCategories } from '$lib/server/budget/categories.repository';
-import { listRecurringCosts } from '$lib/server/budget/costs.repository';
+import { BudgetCategoriesRepository } from '$lib/server/budget/categories.repository';
+import { BudgetRecurringCostsRepository } from '$lib/server/budget/costs.repository';
 import { getFinancialProfile } from '$lib/server/finance/repository';
+import type { FinancialProfile } from '$lib/server/finance/types';
 import { calculateSwedishTax } from '$lib/tax';
 
-export function buildBudgetSummary(query: SummaryQuery = {}): BudgetSummary {
-	const categories = listCategories();
-	const costs = listRecurringCosts({ includeInactive: query.includeInactive });
-	const profile = getFinancialProfile();
+function buildBudgetSummary(input: {
+	categories: Array<{ id: string; name: string }>;
+	costs: Array<{
+		categoryId: string;
+		amount: number;
+		period: 'weekly' | 'monthly' | 'yearly';
+		kind: 'expense' | 'investment';
+		isEssential: boolean;
+	}>;
+	profile: Pick<FinancialProfile, 'monthlySalary' | 'municipalTaxRate'>;
+}): BudgetSummary {
+	const { categories, costs, profile } = input;
 	const taxResult = calculateSwedishTax(profile.monthlySalary, profile.municipalTaxRate);
 	const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
 	const monthlyTotalByCategory = new Map<string, number>();
@@ -73,7 +82,21 @@ export function buildBudgetSummary(query: SummaryQuery = {}): BudgetSummary {
 }
 
 export const buildBudgetSummaryEffect = (query: SummaryQuery = {}) =>
-	Effect.try({
-		try: () => buildBudgetSummary(query),
-		catch: () => persistenceError('Failed to build budget summary'),
+	Effect.gen(function* () {
+		const categoriesRepository = yield* BudgetCategoriesRepository;
+		const costsRepository = yield* BudgetRecurringCostsRepository;
+		const categories = yield* categoriesRepository.listCategories();
+		const costs = yield* costsRepository.listRecurringCosts({
+			includeInactive: query.includeInactive,
+		});
+		const profile = yield* Effect.try({
+			try: () => getFinancialProfile(),
+			catch: () => persistenceError('Failed to load financial profile'),
+		});
+
+		return buildBudgetSummary({
+			categories,
+			costs,
+			profile,
+		});
 	});

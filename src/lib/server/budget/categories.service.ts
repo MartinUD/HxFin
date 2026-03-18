@@ -1,14 +1,8 @@
 import * as Effect from 'effect/Effect';
 
-import { notFoundError, persistenceError, validationError } from '$lib/effect/errors';
+import { notFoundError, validationError } from '$lib/effect/errors';
 import type { CreateCategoryInput, UpdateCategoryInput } from '$lib/schema/budget';
-import {
-	createCategory as createCategoryRow,
-	deleteCategory as deleteCategoryRow,
-	getCategoryById,
-	listCategories,
-	updateCategory as updateCategoryRow,
-} from '$lib/server/budget/categories.repository';
+import { BudgetCategoriesRepository } from '$lib/server/budget/categories.repository';
 
 function normalizeNullableText(value: string | null | undefined): string | null | undefined {
 	if (value === undefined || value === null) {
@@ -20,60 +14,60 @@ function normalizeNullableText(value: string | null | undefined): string | null 
 }
 
 export const listCategoriesEffect = () =>
-	Effect.try({
-		try: () => listCategories(),
-		catch: () => persistenceError('Failed to load budget categories'),
+	Effect.gen(function* () {
+		const repository = yield* BudgetCategoriesRepository;
+		return yield* repository.listCategories();
 	});
 
 export const createCategoryEffect = (input: CreateCategoryInput) =>
-	Effect.try({
-		try: () =>
-			createCategoryRow({
-				name: input.name.trim(),
-				description: normalizeNullableText(input.description) ?? null,
-				color: normalizeNullableText(input.color) ?? null,
-			}),
-		catch: () => persistenceError('Failed to create budget category'),
+	Effect.gen(function* () {
+		const repository = yield* BudgetCategoriesRepository;
+
+		return yield* repository.createCategory({
+			name: input.name.trim(),
+			description: normalizeNullableText(input.description) ?? null,
+			color: normalizeNullableText(input.color) ?? null,
+		});
 	});
 
 export const updateCategoryEffect = (categoryId: string, input: UpdateCategoryInput) =>
-	Effect.try({
-		try: () => {
-			if (!getCategoryById(categoryId)) {
-				throw notFoundError('Budget category was not found', 'CATEGORY_NOT_FOUND');
-			}
+	Effect.gen(function* () {
+		const repository = yield* BudgetCategoriesRepository;
+		const existing = yield* repository.getCategoryById(categoryId);
 
-			if (Object.keys(input).length === 0) {
-				throw validationError('At least one category field must be provided');
-			}
+		if (!existing) {
+			return yield* Effect.fail(
+				notFoundError('Budget category was not found', 'CATEGORY_NOT_FOUND'),
+			);
+		}
 
-			const category = updateCategoryRow(categoryId, {
-				name: input.name?.trim(),
-				description: normalizeNullableText(input.description),
-				color: normalizeNullableText(input.color),
-			});
+		if (Object.keys(input).length === 0) {
+			return yield* Effect.fail(validationError('At least one category field must be provided'));
+		}
 
-			if (!category) {
-				throw notFoundError('Budget category was not found', 'CATEGORY_NOT_FOUND');
-			}
+		const category = yield* repository.updateCategory(categoryId, {
+			name: input.name?.trim(),
+			description: normalizeNullableText(input.description),
+			color: normalizeNullableText(input.color),
+		});
 
-			return category;
-		},
-		catch: (error) =>
-			error && typeof error === 'object' && '_tag' in error
-				? (error as never)
-				: persistenceError('Failed to update budget category'),
+		if (!category) {
+			return yield* Effect.fail(
+				notFoundError('Budget category was not found', 'CATEGORY_NOT_FOUND'),
+			);
+		}
+
+		return category;
 	});
 
 export const deleteCategoryEffect = (categoryId: string) =>
-	Effect.try({
-		try: () => {
-			if (!deleteCategoryRow(categoryId)) {
-				throw notFoundError('Budget category was not found', 'CATEGORY_NOT_FOUND');
-			}
-		},
-		catch: (error) =>
-			error && typeof error === 'object' && '_tag' in error
-				? (error as never)
-				: persistenceError('Failed to delete budget category'),
+	Effect.gen(function* () {
+		const repository = yield* BudgetCategoriesRepository;
+		const deleted = yield* repository.deleteCategory(categoryId);
+
+		if (!deleted) {
+			return yield* Effect.fail(
+				notFoundError('Budget category was not found', 'CATEGORY_NOT_FOUND'),
+			);
+		}
 	});

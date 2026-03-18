@@ -4,12 +4,14 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 
 import { FinApi } from '$lib/api/definition';
+import { BudgetCategoriesRepository } from '$lib/server/budget/categories.repository';
 import {
 	createCategoryEffect,
 	deleteCategoryEffect,
 	listCategoriesEffect,
 	updateCategoryEffect,
 } from '$lib/server/budget/categories.service';
+import { BudgetRecurringCostsRepository } from '$lib/server/budget/costs.repository';
 import {
 	createRecurringCostEffect,
 	deleteRecurringCostEffect,
@@ -80,6 +82,10 @@ const budgetHandlers = HttpApiBuilder.group(FinApi, 'budget', (handlers) =>
 			deleteRecurringCostEffect(path.costId).pipe(Effect.asVoid),
 		)
 		.handle('getBudgetSummary', ({ urlParams }) => buildBudgetSummaryEffect(urlParams ?? {})),
+).pipe(
+	Layer.provide(
+		Layer.mergeAll(BudgetCategoriesRepository.Live, BudgetRecurringCostsRepository.Live),
+	),
 );
 
 const loansHandlers = HttpApiBuilder.group(FinApi, 'loans', (handlers) =>
