@@ -34,14 +34,14 @@ describe('imports csv parsing', () => {
 
 describe('imports description normalization', () => {
 	it('normalizes known payment prefixes into reusable merchant keys', () => {
-		assert.equal(normalizeMerchantDescription('KortkÃ¶p 260219 Testbutik AB'), 'foodora ab');
+		assert.equal(normalizeMerchantDescription('KortkÃ¶p 260219 Testbutik AB'), 'testbutik ab');
 		assert.equal(
 			normalizeMerchantDescription('Swish betalning EXEMPEL FORENING'),
-			'bofors verkstadsklu',
+			'exempel forening',
 		);
 		assert.equal(
 			normalizeMerchantDescription('Betalning BG 000-0000 HYRESFORENING TEST'),
-			'hsb karlskoga',
+			'hyresforening test',
 		);
 	});
 });
