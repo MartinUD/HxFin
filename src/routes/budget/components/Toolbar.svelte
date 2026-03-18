@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { DEFAULT_COLOR } from '$lib/budget';
 	import { Button } from '$lib/components/ui/button';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import {
+		SegmentedControl,
+		type SegmentedControlOption
+	} from '$lib/components/ui/segmented-control';
 	import type { BudgetCategory } from '$lib/schema/budget';
 
 	interface Props {
@@ -19,31 +22,32 @@
 		onOpenCategoriesDialog,
 		onOpenAddCostDialog,
 	}: Props = $props();
+
+	let categoryOptions = $derived<SegmentedControlOption[]>([
+		{
+			value: 'all',
+			label: 'All',
+			meta: String(activeCostCount)
+		},
+		...categories.map((category) => ({
+			value: category.id,
+			label: category.name,
+			dotColor: category.color ?? DEFAULT_COLOR
+		}))
+	]);
 </script>
 
 <div class="budget-toolbar">
 	{#if categories.length > 0}
 		<div class="budget-toolbar-filters">
-			<Tabs.Root bind:value={selectedCategoryFilter}>
-				<Tabs.List class="budget-category-list">
-					<Tabs.Trigger value="all" class="budget-category-chip">
-						All
-						<span class="ml-1.5 opacity-60 text-[10px]">{activeCostCount}</span>
-					</Tabs.Trigger>
-					{#each categories as category}
-						<Tabs.Trigger
-							value={category.id}
-							class="budget-category-chip flex items-center gap-1.5"
-						>
-							<span
-								class="w-2 h-2 rounded-full flex-shrink-0"
-								style="background: {category.color ?? DEFAULT_COLOR}"
-							></span>
-							{category.name}
-						</Tabs.Trigger>
-					{/each}
-				</Tabs.List>
-			</Tabs.Root>
+			<SegmentedControl
+				bind:value={selectedCategoryFilter}
+				options={categoryOptions}
+				variant="pills"
+				size="lg"
+				ariaLabel="Filter costs by category"
+				class="budget-category-control"
+			/>
 		</div>
 	{/if}
 
@@ -93,54 +97,10 @@
 		border-radius: 0.95rem;
 	}
 
-	:global(.budget-category-list) {
-		height: auto;
+	:global(.budget-category-control) {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.25rem;
-		padding: 0;
-		background: transparent;
-		border: 0;
-		border-radius: 0;
-		box-shadow: none;
-	}
-
-	:global([data-slot="tabs-trigger"].budget-category-chip) {
-		height: 3rem;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.18));
-		border: 1px solid var(--ds-glass-border);
-		border-radius: 999px;
-		color: var(--app-text-secondary);
-		font-size: 0.98rem;
-		font-weight: 600;
-		padding: 0.65rem 1.3rem;
-		box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.04);
-		transition:
-			color 0.16s var(--ds-ease),
-			border-color 0.16s var(--ds-ease),
-			background-color 0.16s var(--ds-ease);
-	}
-
-	:global([data-slot="tabs-trigger"].budget-category-chip:hover) {
-		color: var(--app-text-primary);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
-			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.12));
-	}
-
-	:global([data-slot="tabs-trigger"].budget-category-chip[data-state="active"]) {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-			color-mix(
-				in oklab,
-				var(--ds-accent) 14%,
-				color-mix(in oklab, var(--ds-glass-surface) 82%, rgba(12, 20, 14, 0.1))
-			);
-		color: var(--app-accent-light);
-		border-color: color-mix(in oklab, var(--app-accent) 75%, var(--ds-glass-border));
-		box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+		max-width: 100%;
 	}
 
 	:global(.budget-actions button) {

@@ -13,7 +13,12 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import {
+		SegmentedControl,
+		type SegmentedControlOption
+	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
+	import { Tag } from '$lib/components/ui/tag';
 	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
@@ -102,6 +107,15 @@
 	let portfolioTotal = $derived(
 		overallHoldingsTotal > 0 ? overallHoldingsTotal : overallAccountRecordedTotal
 	);
+	let viewOptions = $derived<SegmentedControlOption[]>([
+		{ value: 'portfolio', label: 'Portfolio' },
+		{ value: 'projections', label: 'Projections' }
+	]);
+	let platformOptions = $derived<SegmentedControlOption[]>([
+		{ value: 'all', label: 'All' },
+		{ value: 'nordea', label: 'Nordea' },
+		{ value: 'avanza', label: 'Avanza' }
+	]);
 	let allocationRows = $derived(
 		visibleHoldings
 			.map((h) => ({
@@ -432,27 +446,20 @@
 	<div class="app-toolbar">
 		<div class="app-toolbar-left">
 			<h1 class="app-page-title">Investments</h1>
-			<div class="view-toggle" role="group" aria-label="Switch view">
-				<button
-					type="button"
-					class="toggle-btn"
-					class:active={view === 'portfolio'}
-					onclick={() => (view = 'portfolio')}
-				>Portfolio</button>
-				<button
-					type="button"
-					class="toggle-btn"
-					class:active={view === 'projections'}
-					onclick={() => (view = 'projections')}
-				>Projections</button>
-			</div>
+			<SegmentedControl
+				bind:value={view}
+				options={viewOptions}
+				ariaLabel="Switch investment view"
+				class="view-toggle"
+			/>
 			{#if view === 'portfolio'}
 				<div class="app-toolbar-divider" aria-hidden="true"></div>
-				<div class="platform-filter" role="group" aria-label="Filter holdings by platform">
-					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'all'} onclick={() => (platformFilter = 'all')}>All</button>
-					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'nordea'} onclick={() => (platformFilter = 'nordea')}>Nordea</button>
-					<button type="button" class="platform-filter-btn" class:active={platformFilter === 'avanza'} onclick={() => (platformFilter = 'avanza')}>Avanza</button>
-				</div>
+				<SegmentedControl
+					bind:value={platformFilter}
+					options={platformOptions}
+					ariaLabel="Filter holdings by platform"
+					class="platform-filter"
+				/>
 			{/if}
 		</div>
 
@@ -524,9 +531,18 @@
 										<Table.Row class="border-border group">
 											<Table.Cell class="portfolio-cell holding-name-cell text-foreground font-medium">{holding.name}</Table.Cell>
 											<Table.Cell class="portfolio-cell">
-												<span class="platform-pill platform-pill-{holding.trackerSource}">
+												<Tag
+													variant={
+														holding.trackerSource === 'avanza'
+															? 'success'
+															: holding.trackerSource === 'manual'
+																? 'neutral'
+																: 'subtle'
+													}
+													class="platform-pill"
+												>
 													{formatPlatformLabel(holding.trackerSource)}
-												</span>
+												</Tag>
 											</Table.Cell>
 											<Table.Cell class="portfolio-cell text-right font-mono tabular-nums text-foreground">{formatCurrency(holding.currentValue)}</Table.Cell>
 											<Table.Cell class="portfolio-cell text-right font-mono tabular-nums text-muted-foreground">{formatPercent(holding.actualPercent)}</Table.Cell>
@@ -716,84 +732,10 @@
 	}
 
 	/* ── Segmented toggle ── */
-	.view-toggle {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
-		border: 1px solid var(--ds-glass-border);
-		border-radius: 12px;
-		padding: 4px;
+	:global(.view-toggle),
+	:global(.platform-filter) {
 		margin-left: 4px;
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-	}
-
-	.toggle-btn {
-		height: 2.8rem;
-		padding: 0.55rem 1rem;
-		border-radius: 0.8rem;
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--app-text-muted);
-		font-family: var(--ds-font-body);
-		font-size: 0.92rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			background 0.13s var(--ds-ease),
-			color 0.13s var(--ds-ease),
-			border-color 0.13s var(--ds-ease);
-	}
-
-	.toggle-btn:hover:not(.active) {
-		color: var(--app-text-secondary);
-	}
-
-	.toggle-btn.active {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--app-accent) 14%, color-mix(in oklab, var(--ds-glass-surface) 82%, rgba(12, 20, 14, 0.1)));
-		border-color: color-mix(in oklab, var(--app-accent) 50%, var(--app-border));
-		color: var(--app-accent-light);
-	}
-
-	.platform-filter {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		padding: 4px;
-		border: 1px solid var(--ds-glass-border);
-		border-radius: 12px;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
-		box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.03);
-	}
-
-	.platform-filter-btn {
-		height: 2.8rem;
-		padding: 0.55rem 1rem;
-		border: 1px solid transparent;
-		border-radius: 0.8rem;
-		background: transparent;
-		color: var(--app-text-muted);
-		font-size: 0.92rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			background 0.13s var(--ds-ease),
-			color 0.13s var(--ds-ease),
-			border-color 0.13s var(--ds-ease);
-	}
-
-	.platform-filter-btn.active {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--app-accent) 14%, color-mix(in oklab, var(--ds-glass-surface) 82%, rgba(12, 20, 14, 0.1)));
-		border-color: color-mix(in oklab, var(--app-accent) 50%, var(--app-border));
-		color: var(--app-accent-light);
+		max-width: 100%;
 	}
 
 	.sync-chip {
@@ -916,30 +858,8 @@
 		gap: 5px;
 	}
 
-	.platform-pill {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.34rem 0.95rem;
-		border-radius: 999px;
-		border: 1px solid var(--app-border);
+	:global(.platform-pill) {
 		font-size: 0.84rem;
-		font-weight: 600;
-	}
-
-	.platform-pill-nordea {
-		color: var(--app-text-primary);
-		background: rgba(255, 255, 255, 0.04);
-	}
-
-	.platform-pill-avanza {
-		color: var(--app-accent-light);
-		background: var(--app-accent-glow);
-		border-color: color-mix(in oklab, var(--app-accent) 45%, var(--app-border));
-	}
-
-	.platform-pill-manual {
-		color: var(--app-text-secondary);
-		background: rgba(255, 255, 255, 0.03);
 	}
 
 	.holding-action {
@@ -957,7 +877,7 @@
 		transition: color 0.12s ease, border-color 0.12s ease;
 	}
 
-	.holding-action-icon {
+	:global(.holding-action-icon) {
 		width: 13px;
 		height: 13px;
 		flex: none;
@@ -1003,13 +923,6 @@
 
 	@media (max-width: 980px) {
 		.calculator-shell { grid-template-columns: 1fr; min-height: 0; }
-	}
-
-	@media (max-width: 768px) {
-		.proj-toolbar {
-			flex-wrap: wrap;
-			align-items: flex-start;
-		}
 	}
 
 	@media (max-width: 640px) {

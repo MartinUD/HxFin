@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatCurrency, toMonthlyAmount } from '$lib/budget';
 	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
+	import { Tag } from '$lib/components/ui/tag';
 	import * as Table from '$lib/components/ui/table';
 	import type { BudgetCategory, RecurringCost } from '$lib/schema/budget';
 
@@ -140,6 +141,15 @@
 
 		return withDirection(withTiebreak, sortState.direction);
 	}
+
+	function getCategoryTagStyle(categoryId: string): string {
+		const color = categoryMap.get(categoryId)?.color;
+		const background = color ? `${color}22` : 'var(--app-bg-input)';
+		const borderColor = color ? `${color}40` : 'var(--app-border)';
+		const textColor = color ?? 'var(--app-text-secondary)';
+
+		return `background:${background};border-color:${borderColor};color:${textColor};`;
+	}
 </script>
 
 <div class="budget-table-shell rounded-lg border border-border overflow-hidden">
@@ -162,36 +172,31 @@
 					<Table.Row class="border-border group">
 						<Table.Cell class="budget-table-cell font-medium text-foreground">{cost.name}</Table.Cell>
 						<Table.Cell class="budget-table-cell">
-							<span
+							<Tag
 								class="category-badge"
-								style:background={
-									categoryMap.get(cost.categoryId)?.color
-										? `${categoryMap.get(cost.categoryId)?.color}22`
-										: 'var(--app-bg-input)'
-								}
-								style:border-color={
-									categoryMap.get(cost.categoryId)?.color
-										? `${categoryMap.get(cost.categoryId)?.color}40`
-										: 'var(--app-border)'
-								}
-								style:color={categoryMap.get(cost.categoryId)?.color ?? 'var(--app-text-secondary)'}
+								style={getCategoryTagStyle(cost.categoryId)}
 							>
 								{categoryMap.get(cost.categoryId)?.name ?? 'Unknown'}
-							</span>
+							</Tag>
 						</Table.Cell>
 						<Table.Cell class="budget-table-cell">
-							<span class="kind-pill" class:kind-pill-investment={cost.kind === 'investment'}>
+							<Tag variant={cost.kind === 'investment' ? 'accent' : 'neutral'} class="kind-pill">
 								{cost.kind === 'investment' ? 'Investment' : 'Expense'}
-							</span>
+							</Tag>
 						</Table.Cell>
 						<Table.Cell class="budget-table-cell">
-							<span
+							<Tag
+								variant={
+									cost.kind === 'investment'
+										? 'subtle'
+										: cost.isEssential
+											? 'success'
+											: 'subtle'
+								}
 								class="essential-pill"
-								class:essential-pill-na={cost.kind === 'investment'}
-								class:essential-pill-on={cost.kind !== 'investment' && cost.isEssential}
 							>
 								{cost.kind === 'investment' ? 'N/A' : cost.isEssential ? 'Yes' : 'No'}
-							</span>
+							</Tag>
 						</Table.Cell>
 						<Table.Cell class="budget-table-cell text-muted-foreground capitalize text-[0.96rem]">{cost.period}</Table.Cell>
 						<Table.Cell class="budget-table-cell text-right tabular-nums text-foreground text-[1rem]">{formatCurrency(cost.amount)}</Table.Cell>
@@ -422,61 +427,18 @@
 		color: var(--app-red);
 	}
 
-	.essential-pill {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
+	:global(.essential-pill) {
 		min-width: 48px;
-		padding: 0.32rem 0.9rem;
-		border-radius: 999px;
-		font-size: 0.8rem;
-		font-weight: 700;
 		letter-spacing: 0.02em;
-		color: var(--app-text-muted);
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid var(--app-border);
 	}
 
-	.category-badge {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.34rem 0.95rem;
-		border-radius: 99px;
-		border: 1px solid;
-		font-size: 0.84rem;
-		font-weight: 600;
+	:global(.category-badge) {
 		white-space: nowrap;
 		flex-shrink: 0;
 	}
 
-	.essential-pill-on {
-		color: var(--app-accent-light);
-		background: var(--app-accent-glow);
-		border-color: color-mix(in oklab, var(--app-accent) 60%, var(--app-border));
-	}
-
-	.essential-pill-na {
-		opacity: 0.55;
-	}
-
-	.kind-pill {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.32rem 0.9rem;
-		border-radius: 999px;
-		font-size: 0.8rem;
-		font-weight: 700;
+	:global(.kind-pill) {
 		letter-spacing: 0.02em;
-		color: var(--app-text-secondary);
-		border: 1px solid var(--app-border);
-		background: rgba(255, 255, 255, 0.03);
-	}
-
-	.kind-pill-investment {
-		color: var(--app-accent-light);
-		border-color: color-mix(in oklab, var(--app-accent) 62%, var(--app-border));
-		background: color-mix(in oklab, var(--app-accent) 24%, transparent);
 	}
 
 	@media (max-width: 768px) {
