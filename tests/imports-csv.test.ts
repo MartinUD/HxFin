@@ -7,8 +7,8 @@ import { normalizeMerchantDescription } from '../src/lib/server/imports/normaliz
 describe('imports csv parsing', () => {
 	it('parses Nordea semicolon csv rows and normalizes core values', () => {
 		const csv = [
-			'\uFEFFBokfÃ¶ringsdag;Belopp;AvsÃ¤ndare;Mottagare;Namn;Rubrik;Saldo;Valuta;',
-			'2026/02/20;-478,40;0000 00 00001;;;KortkÃ¶p 260219 Testbutik AB;100688,69;SEK;',
+			'\uFEFFBokf\u00f6ringsdag;Belopp;Avs\u00e4ndare;Mottagare;Namn;Rubrik;Saldo;Valuta;',
+			'2026/02/20;-478,40;0000 00 00001;;;Kortk\u00f6p 260219 Testbutik AB;100688,69;SEK;',
 			'2026/02/19;478,00;;0000 00 00001;;Swish inbetalning EXEMPEL,ALVA;101219,66;SEK;',
 		].join('\n');
 
@@ -18,7 +18,7 @@ describe('imports csv parsing', () => {
 		assert.deepEqual(rows[0], {
 			bookingDate: '2026-02-20',
 			amount: -478.4,
-			description: 'KortkÃ¶p 260219 Testbutik AB',
+			description: 'Kortk\u00f6p 260219 Testbutik AB',
 			currency: 'SEK',
 			sender: '0000 00 00001',
 			receiver: null,
@@ -34,7 +34,7 @@ describe('imports csv parsing', () => {
 
 describe('imports description normalization', () => {
 	it('normalizes known payment prefixes into reusable merchant keys', () => {
-		assert.equal(normalizeMerchantDescription('KortkÃ¶p 260219 Testbutik AB'), 'testbutik ab');
+		assert.equal(normalizeMerchantDescription('Kortk\u00f6p 260219 Testbutik AB'), 'testbutik ab');
 		assert.equal(
 			normalizeMerchantDescription('Swish betalning EXEMPEL FORENING'),
 			'exempel forening',
