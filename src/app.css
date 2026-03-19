@@ -324,60 +324,6 @@
 			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.1));
 	}
 
-	.app-table-shell {
-		flex: 1 1 auto;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		background:
-			linear-gradient(180deg, var(--ds-glass-bg-strong), var(--ds-glass-bg)),
-			var(--ds-glass-surface);
-		backdrop-filter: blur(var(--ds-glass-blur));
-		-webkit-backdrop-filter: blur(var(--ds-glass-blur));
-		box-shadow: var(--ds-glass-shadow), inset 0 1px 0 var(--ds-glass-edge);
-		border-color: var(--ds-glass-border);
-		--table-container-bg: rgba(0, 0, 0, 0.08);
-		--table-bg: transparent;
-		--table-header-bg: rgba(0, 0, 0, 0.06);
-	}
-
-	.app-table-scroll {
-		flex: 1 1 auto;
-		min-height: 0;
-		overflow: auto;
-		overscroll-behavior: contain;
-		scrollbar-gutter: stable;
-	}
-
-	.app-table-summary {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.9rem 1.1rem 1rem;
-		border-top: 1px solid var(--ds-glass-border);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12)),
-			color-mix(in oklab, var(--ds-glass-surface) 92%, transparent);
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-	}
-
-	.app-table-summary-label {
-		font-family: var(--ds-font-display);
-		font-size: 0.72rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--app-text-muted);
-	}
-
-	.app-table-summary-value {
-		font-family: var(--ds-font-mono);
-		font-size: 1.15rem;
-		font-weight: 700;
-		color: var(--app-accent-light);
-		font-variant-numeric: tabular-nums;
-	}
 }
 
 /* Scrollbar */
@@ -424,8 +370,4 @@
 		display: none;
 	}
 
-	.app-table-summary {
-		align-items: flex-start;
-		flex-direction: column;
-	}
 }

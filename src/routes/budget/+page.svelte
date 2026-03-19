@@ -127,11 +127,6 @@
 		overflow: hidden;
 	}
 
-	:global(.budget-table-shell) {
-		flex: 1 1 auto;
-		min-height: 0;
-	}
-
 	@media (max-width: 768px) {
 		.budget-page {
 			padding-top: 72px;

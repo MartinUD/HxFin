@@ -1,10 +1,16 @@
 <script lang="ts">
 	import type * as Effect from 'effect/Effect';
 	import { type ApiClient, withApiClient } from '$lib/api/client';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
+	import {
+		Table,
+		SortableTableHead,
+		type SortDirection,
+		sortAlphabetical,
+		sortValue,
+		toggleSort as toggleTableSort
+	} from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
@@ -30,7 +36,7 @@
 	let errorMessage = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
 	let lastUploadResult = $state<UploadCsvResult | null>(null);
-	let transactionSort = $state<{ key: ImportSortKey; direction: 'asc' | 'desc' }>({
+	let transactionSort = $state<{ key: ImportSortKey; direction: SortDirection }>({
 		key: 'date',
 		direction: 'desc'
 	});
@@ -57,51 +63,58 @@
 	}
 
 	function toggleTransactionSort(key: ImportSortKey): void {
-		if (transactionSort.key === key) {
-			transactionSort = {
-				key,
-				direction: transactionSort.direction === 'asc' ? 'desc' : 'asc'
-			};
-			return;
-		}
-
-		transactionSort = {
-			key,
-			direction: key === 'amount' ? 'desc' : key === 'date' ? 'desc' : 'asc'
-		};
+		transactionSort = toggleTableSort(transactionSort, key);
 	}
 
 	function sortReviewTransactions(left: ImportedTransaction, right: ImportedTransaction): number {
-		const factor = transactionSort.direction === 'asc' ? 1 : -1;
-		let comparison = 0;
-
 		switch (transactionSort.key) {
 			case 'date':
-				comparison = left.bookingDate.localeCompare(right.bookingDate);
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(left.bookingDate, right.bookingDate, transactionSort.direction),
+					left,
+					right
+				);
 			case 'description':
-				comparison = left.description.localeCompare(right.description, undefined, { sensitivity: 'base' });
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(left.description, right.description, transactionSort.direction),
+					left,
+					right
+				);
 			case 'normalized':
-				comparison = left.normalizedDescription.localeCompare(right.normalizedDescription, undefined, {
-					sensitivity: 'base'
-				});
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(
+						left.normalizedDescription,
+						right.normalizedDescription,
+						transactionSort.direction
+					),
+					left,
+					right
+				);
 			case 'amount':
-				comparison = left.amount - right.amount;
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(left.amount, right.amount, transactionSort.direction),
+					left,
+					right
+				);
 			case 'batch':
-				comparison = left.importBatchSourceName.localeCompare(right.importBatchSourceName, undefined, {
-					sensitivity: 'base'
-				});
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(
+						left.importBatchSourceName,
+						right.importBatchSourceName,
+						transactionSort.direction
+					),
+					left,
+					right
+				);
 		}
+	}
 
-		if (comparison === 0) {
-			comparison = right.createdAt.localeCompare(left.createdAt);
-		}
-
-		return comparison * factor;
+	function withCreatedAtTiebreak(
+		comparison: number,
+		left: ImportedTransaction,
+		right: ImportedTransaction
+	): number {
+		return comparison !== 0 ? comparison : right.createdAt.localeCompare(left.createdAt);
 	}
 
 	function toErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -289,70 +302,66 @@
 		{/if}
 	</div>
 
-	<div class="app-table-shell rounded-lg border border-border overflow-hidden">
-		<div class="app-table-scroll">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="imports-header-row border-border hover:bg-transparent">
-					<SortableTableHead class="imports-head w-[10%]" label="Date" active={transactionSort.key === 'date'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('date')} />
-					<SortableTableHead class="imports-head w-[24%]" label="Description" active={transactionSort.key === 'description'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('description')} />
-					<SortableTableHead class="imports-head w-[14%]" label="Normalized" active={transactionSort.key === 'normalized'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('normalized')} />
-					<SortableTableHead class="imports-head w-[10%]" label="Amount" align="right" active={transactionSort.key === 'amount'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('amount')} />
-					<SortableTableHead class="imports-head w-[16%]" label="Batch" active={transactionSort.key === 'batch'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('batch')} />
-					<Table.Head class="imports-head w-[16%]">Category</Table.Head>
-					<Table.Head class="w-[10%]"></Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each sortedReviewTransactions as transaction (transaction.id)}
-						<Table.Row class="border-border">
-						<Table.Cell class="text-muted-foreground text-sm">{transaction.bookingDate}</Table.Cell>
-						<Table.Cell class="text-foreground text-sm">{transaction.description}</Table.Cell>
-						<Table.Cell class="text-muted-foreground text-xs">{transaction.normalizedDescription}</Table.Cell>
-						<Table.Cell class="text-right tabular-nums text-foreground text-sm">{formatCurrency(transaction.amount)}</Table.Cell>
-						<Table.Cell class="text-muted-foreground text-xs">{transaction.importBatchSourceName}</Table.Cell>
-						<Table.Cell>
-							<select
-								class="category-select"
-								value={selectedCategoryByTransactionId[transaction.id] ?? ''}
-								onchange={(event) => {
-									const target = event.target as HTMLSelectElement;
-									selectedCategoryByTransactionId[transaction.id] = target.value;
-									selectedCategoryByTransactionId = { ...selectedCategoryByTransactionId };
-								}}
-							>
-								<option value="">Select category</option>
-								{#each categories as category}
-									<option value={category.id}>{category.name}</option>
-								{/each}
-							</select>
-						</Table.Cell>
-						<Table.Cell>
-							<div class="row-actions">
-								<button type="button" class="row-action-btn" onclick={() => handleAssignCategory(transaction.id, false)} disabled={pending}>
-									Apply
-								</button>
-								<button type="button" class="row-action-btn accent" onclick={() => handleAssignCategory(transaction.id, true)} disabled={pending}>
-									Apply + Rule
-								</button>
-							</div>
-						</Table.Cell>
-						</Table.Row>
-					{:else}
-						<Table.Row>
-							<Table.Cell colspan={7} class="text-center py-14 text-muted-foreground text-sm">
-								No transactions in review queue.
-							</Table.Cell>
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</div>
-		<div class="app-table-summary">
-			<span class="app-table-summary-label">Review queue</span>
-			<span class="app-table-summary-value">{reviewCount}</span>
-		</div>
-	</div>
+	<Table fill>
+		{#snippet footer()}
+			<span class="table-summary-label">Review queue</span>
+			<span class="table-summary-value">{reviewCount}</span>
+		{/snippet}
+		<thead>
+			<tr>
+				<SortableTableHead class="w-[10%]" label="Date" active={transactionSort.key === 'date'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('date')} />
+				<SortableTableHead class="w-[24%]" label="Description" active={transactionSort.key === 'description'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('description')} />
+				<SortableTableHead class="w-[14%]" label="Normalized" active={transactionSort.key === 'normalized'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('normalized')} />
+				<SortableTableHead class="w-[10%]" label="Amount" align="right" active={transactionSort.key === 'amount'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('amount')} />
+				<SortableTableHead class="w-[16%]" label="Batch" active={transactionSort.key === 'batch'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('batch')} />
+				<th class="w-[16%]">Category</th>
+				<th class="w-[10%]"></th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each sortedReviewTransactions as transaction (transaction.id)}
+				<tr>
+					<td class="text-muted-foreground text-sm">{transaction.bookingDate}</td>
+					<td class="text-foreground text-sm">{transaction.description}</td>
+					<td class="text-muted-foreground text-xs">{transaction.normalizedDescription}</td>
+					<td class="text-right tabular-nums text-foreground text-sm">{formatCurrency(transaction.amount)}</td>
+					<td class="text-muted-foreground text-xs">{transaction.importBatchSourceName}</td>
+					<td>
+						<select
+							class="category-select"
+							value={selectedCategoryByTransactionId[transaction.id] ?? ''}
+							onchange={(event) => {
+								const target = event.target as HTMLSelectElement;
+								selectedCategoryByTransactionId[transaction.id] = target.value;
+								selectedCategoryByTransactionId = { ...selectedCategoryByTransactionId };
+							}}
+						>
+							<option value="">Select category</option>
+							{#each categories as category}
+								<option value={category.id}>{category.name}</option>
+							{/each}
+						</select>
+					</td>
+					<td>
+						<div class="row-actions">
+							<button type="button" class="row-action-btn" onclick={() => handleAssignCategory(transaction.id, false)} disabled={pending}>
+								Apply
+							</button>
+							<button type="button" class="row-action-btn accent" onclick={() => handleAssignCategory(transaction.id, true)} disabled={pending}>
+								Apply + Rule
+							</button>
+						</div>
+					</td>
+				</tr>
+			{:else}
+				<tr>
+					<td colspan={7} class="table-empty-state">
+						No transactions in review queue.
+					</td>
+				</tr>
+			{/each}
+		</tbody>
+	</Table>
 </div>
 
 <style>
@@ -454,22 +463,6 @@
 		font-size: 0.76rem;
 	}
 
-	:global(.imports-header-row) {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.14));
-	}
-
-	:global(.imports-head) {
-		height: 3.7rem;
-		padding: 1.15rem 1.25rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		letter-spacing: 0;
-		text-transform: none;
-		color: var(--app-text-secondary);
-	}
-
 	.category-select {
 		width: 100%;
 		padding: 4px 6px;
@@ -516,3 +509,4 @@
 		}
 	}
 </style>
+
