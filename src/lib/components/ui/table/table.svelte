@@ -8,11 +8,6 @@
 		footer?: Snippet;
 		showFooter?: boolean;
 		fill?: boolean;
-		size?: 'compact' | 'comfortable';
-		stickyHeader?: boolean;
-		variant?: 'glass' | 'plain';
-		shellClass?: string;
-		scrollClass?: string;
 	}
 
 	let {
@@ -22,11 +17,6 @@
 		footer,
 		showFooter = true,
 		fill = false,
-		size = 'comfortable',
-		stickyHeader = true,
-		variant = 'glass',
-		shellClass = '',
-		scrollClass = '',
 		...restProps
 	}: Props = $props();
 </script>
@@ -34,17 +24,14 @@
 <!-- Shared table frame so route pages only define columns, rows, and optional footer content. -->
 <div
 	data-slot="table-shell"
-	data-size={size}
-	data-variant={variant}
 	data-fill={fill ? '' : undefined}
-	class={cn('rounded-lg border overflow-hidden', shellClass)}
+	class="rounded-lg border overflow-hidden"
 >
 	<!-- Scroll container owns the sticky-header context. -->
-	<div data-slot="table-scroll" class={cn('relative w-full overflow-auto', scrollClass)}>
+	<div data-slot="table-scroll" class="relative w-full overflow-auto">
 		<table
 			bind:this={ref}
 			data-slot="table"
-			data-sticky={stickyHeader ? '' : undefined}
 			class={cn('[font-family:var(--ds-font-body)] w-full caption-bottom text-sm', className)}
 			{...restProps}
 		>
@@ -79,13 +66,6 @@
 	:global([data-slot='table-shell'][data-fill]) {
 		flex: 1 1 auto;
 		height: 100%;
-	}
-
-	:global([data-slot='table-shell'][data-variant='plain']) {
-		background: var(--table-shell-bg, var(--app-bg-card));
-		backdrop-filter: none;
-		-webkit-backdrop-filter: none;
-		box-shadow: none;
 	}
 
 	:global([data-slot='table-scroll']) {
@@ -124,7 +104,7 @@
 		-webkit-backdrop-filter: blur(8px);
 	}
 
-	:global([data-slot='table'][data-sticky] thead th) {
+	:global([data-slot='table'] thead th) {
 		position: sticky;
 		top: 0;
 		z-index: 3;
@@ -163,7 +143,7 @@
 		white-space: nowrap;
 	}
 
-	:global([data-slot='table-shell'][data-size='comfortable'] [data-slot='table'] th) {
+	:global([data-slot='table-shell'] [data-slot='table'] th) {
 		height: 3.7rem;
 		padding: 1.05rem 1.25rem;
 		font-size: 0.82rem;
@@ -171,22 +151,9 @@
 		text-transform: none;
 	}
 
-	:global([data-slot='table-shell'][data-size='comfortable'] [data-slot='table'] td) {
+	:global([data-slot='table-shell'] [data-slot='table'] td) {
 		padding: 1.05rem 1.25rem;
 		font-size: 1rem;
-	}
-
-	:global([data-slot='table-shell'][data-size='compact'] [data-slot='table'] th) {
-		height: 2.9rem;
-		padding: 0.7rem 0.9rem;
-		font-size: 0.74rem;
-		letter-spacing: 0.02em;
-		text-transform: uppercase;
-	}
-
-	:global([data-slot='table-shell'][data-size='compact'] [data-slot='table'] td) {
-		padding: 0.75rem 0.9rem;
-		font-size: 0.88rem;
 	}
 
 	:global([data-slot='table'] tfoot) {
