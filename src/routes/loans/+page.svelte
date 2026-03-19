@@ -9,6 +9,10 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import {
+		SegmentedControl,
+		type SegmentedControlOption
+	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
@@ -33,6 +37,19 @@
 		paid: 'Paid',
 		overdue: 'Overdue'
 	};
+
+	const statusFilterOptions: SegmentedControlOption[] = [
+		{ value: 'all', label: 'All' },
+		{ value: 'open', label: 'Open' },
+		{ value: 'overdue', label: 'Overdue' },
+		{ value: 'paid', label: 'Paid' }
+	];
+
+	const directionFilterOptions: SegmentedControlOption[] = [
+		{ value: 'all', label: 'All' },
+		{ value: 'lent', label: 'Lent' },
+		{ value: 'borrowed', label: 'Borrowed' }
+	];
 
 	let hydratedFromLoad = $state(false);
 	let loans = $state<Loan[]>([]);
@@ -287,20 +304,21 @@
 		<div class="app-toolbar-left">
 			<h1 class="app-page-title">Loans</h1>
 
-			<div class="app-pill-group" role="group" aria-label="Filter by status">
-				<button type="button" class="app-pill" class:is-active={statusFilter === 'all'} onclick={() => (statusFilter = 'all')}>All</button>
-				<button type="button" class="app-pill" class:is-active={statusFilter === 'open'} onclick={() => (statusFilter = 'open')}>Open</button>
-				<button type="button" class="app-pill" class:is-active={statusFilter === 'overdue'} onclick={() => (statusFilter = 'overdue')}>Overdue</button>
-				<button type="button" class="app-pill" class:is-active={statusFilter === 'paid'} onclick={() => (statusFilter = 'paid')}>Paid</button>
-			</div>
+			<SegmentedControl
+				bind:value={statusFilter}
+				options={statusFilterOptions}
+				ariaLabel="Filter loans by status"
+				class="loan-filter"
+			/>
 
 			<div class="app-toolbar-divider" aria-hidden="true"></div>
 
-			<div class="app-pill-group" role="group" aria-label="Filter by direction">
-				<button type="button" class="app-pill" class:is-active={directionFilter === 'all'} onclick={() => (directionFilter = 'all')}>All directions</button>
-				<button type="button" class="app-pill" class:is-active={directionFilter === 'lent'} onclick={() => (directionFilter = 'lent')}>Lent</button>
-				<button type="button" class="app-pill" class:is-active={directionFilter === 'borrowed'} onclick={() => (directionFilter = 'borrowed')}>Borrowed</button>
-			</div>
+			<SegmentedControl
+				bind:value={directionFilter}
+				options={directionFilterOptions}
+				ariaLabel="Filter loans by direction"
+				class="loan-filter"
+			/>
 		</div>
 
 		<div class="app-toolbar-right">
@@ -512,6 +530,11 @@
 </Dialog.Root>
 
 <style>
+	:global(.loan-filter) {
+		margin-left: 4px;
+		max-width: 100%;
+	}
+
 	:global(.loans-header-row) {
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),

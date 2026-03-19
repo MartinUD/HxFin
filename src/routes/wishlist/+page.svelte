@@ -9,6 +9,10 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import {
+		SegmentedControl,
+		type SegmentedControlOption
+	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
 	import * as Table from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
@@ -37,6 +41,14 @@
 		exact: 'Exact',
 		estimate: 'Estimate'
 	};
+
+	const strategyFilterOptions: SegmentedControlOption[] = [
+		{ value: 'all', label: 'All' },
+		{ value: 'save', label: 'Save' },
+		{ value: 'loan', label: 'Loan' },
+		{ value: 'mixed', label: 'Mixed' },
+		{ value: 'buy_outright', label: 'Buy outright' }
+	];
 
 	let hydrated = $state(false);
 	let items = $state<WishlistItem[]>([]);
@@ -77,6 +89,13 @@
 	let sortedItems = $derived(items.slice().sort(sortItems));
 	let categoryMap = $derived(new Map(categories.map((category) => [category.id, category])));
 	let loanById = $derived(new Map(loans.map((loan) => [loan.id, loan])));
+	let categoryFilterOptions = $derived<SegmentedControlOption[]>([
+		{ value: 'all', label: 'All categories' },
+		...categories.map((category) => ({
+			value: category.id,
+			label: category.name
+		}))
+	]);
 	let filteredItems = $derived(sortedItems.filter((item) => {
 		const passesStrategy = strategyFilter === 'all' || item.fundingStrategy === strategyFilter;
 		const passesCategory = selectedCategoryFilter === 'all' || item.categoryId === selectedCategoryFilter;
@@ -308,21 +327,20 @@
 	<div class="app-toolbar">
 		<div class="app-toolbar-left">
 			<h1 class="app-page-title">Wishlist</h1>
-			<div class="app-pill-group" role="group" aria-label="Filter by strategy">
-				{#each (['all', 'save', 'loan', 'mixed', 'buy_outright'] as const) as strategy (strategy)}
-					<button type="button" class="app-pill" class:is-active={strategyFilter === strategy} onclick={() => (strategyFilter = strategy)}>
-						{strategy === 'all' ? 'All' : STRATEGY_LABELS[strategy]}
-					</button>
-				{/each}
-			</div>
+			<SegmentedControl
+				bind:value={strategyFilter}
+				options={strategyFilterOptions}
+				ariaLabel="Filter wishlist by strategy"
+				class="wishlist-filter"
+			/>
 			{#if categories.length > 0}
 				<div class="app-toolbar-divider" aria-hidden="true"></div>
-				<div class="app-pill-group" role="group" aria-label="Filter by category">
-					<button type="button" class="app-pill" class:is-active={selectedCategoryFilter === 'all'} onclick={() => (selectedCategoryFilter = 'all')}>All categories</button>
-					{#each categories as category (category.id)}
-						<button type="button" class="app-pill" class:is-active={selectedCategoryFilter === category.id} onclick={() => (selectedCategoryFilter = category.id)}>{category.name}</button>
-					{/each}
-				</div>
+				<SegmentedControl
+					bind:value={selectedCategoryFilter}
+					options={categoryFilterOptions}
+					ariaLabel="Filter wishlist by category"
+					class="wishlist-filter"
+				/>
 			{/if}
 		</div>
 		<div class="app-toolbar-right">
@@ -435,6 +453,11 @@
 </Dialog.Root>
 
 <style>
+	:global(.wishlist-filter) {
+		margin-left: 4px;
+		max-width: 100%;
+	}
+
 	.toggle-group, .spread { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 	:global(.header-row) { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)), color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12,20,14,.14)); }
 	:global(.head) { height: 3.7rem; padding: 1.15rem 1.25rem; font-size: .82rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--app-text-secondary); }
