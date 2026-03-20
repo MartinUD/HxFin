@@ -359,6 +359,7 @@
 	.app-toolbar-right {
 		justify-content: flex-start;
 	}
+
 }
 
 @media (max-width: 640px) {

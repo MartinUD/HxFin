@@ -34,7 +34,7 @@
 
 	let { data }: Props = $props();
 
-	let selectedCategoryFilter = $state('all');
+	let selectedCategoryFilter = $state<string[]>(['all']);
 	let errorMessage = $state<string | null>(null);
 	let costDialog: CostDialogRef | null = null;
 	let categoriesDialog: CategoriesDialogRef | null = null;
@@ -106,8 +106,8 @@
 	onSaved={invalidateAll}
 	onError={(message) => (errorMessage = message)}
 	onCategoryDeleted={(categoryId) => {
-		if (selectedCategoryFilter === categoryId) {
-			selectedCategoryFilter = 'all';
+		if (selectedCategoryFilter.includes(categoryId)) {
+			selectedCategoryFilter = ['all'];
 		}
 	}}
 />

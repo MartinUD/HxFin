@@ -26,7 +26,7 @@
 				},
 				pills: {
 					root: 'flex-wrap gap-1.5 rounded-[0.95rem] p-1',
-					item: 'rounded-full px-4',
+					item: 'rounded-[0.95rem] px-4',
 					activeItem: '',
 				},
 			},
@@ -48,6 +48,7 @@
 
 	export type SegmentedControlSize = VariantProps<typeof segmentedControlVariants>['size'];
 	export type SegmentedControlVariant = VariantProps<typeof segmentedControlVariants>['variant'];
+	export type SegmentedControlSelectionMode = 'single' | 'multiple';
 </script>
 
 <script lang="ts">
@@ -56,6 +57,7 @@
 	let {
 		options,
 		value = $bindable(),
+		selectionMode = 'single',
 		variant = 'grouped',
 		size = 'md',
 		class: className,
@@ -64,26 +66,58 @@
 		onValueChange,
 	}: {
 		options: SegmentedControlOption[];
-		value: string;
+		value: string | string[];
+		selectionMode?: SegmentedControlSelectionMode;
 		variant?: SegmentedControlVariant;
 		size?: SegmentedControlSize;
 		class?: string;
 		itemClass?: string;
 		ariaLabel?: string;
-		onValueChange?: (value: string) => void;
+		onValueChange?: (value: string | string[], changedValue: string) => void;
 	} = $props();
 
 	let styles = $derived(segmentedControlVariants({ variant, size }));
-	let activeIndex = $derived(Math.max(0, options.findIndex((option) => option.value === value)));
+	let selectedValues = $derived(
+		selectionMode === 'multiple'
+			? Array.isArray(value)
+				? value
+				: value
+					? [value]
+					: []
+			: Array.isArray(value)
+				? [value[0] ?? '']
+				: [value]
+	);
+	let activeIndex = $derived(
+		Math.max(0, options.findIndex((option) => option.value === selectedValues[0]))
+	);
 	let rootStyle = $derived(
-		variant === 'grouped'
+		variant === 'grouped' && selectionMode === 'single'
 			? `--segment-count:${options.length};--segment-index:${activeIndex};grid-template-columns:repeat(${options.length},minmax(0,1fr));`
 			: undefined
 	);
 
+	function isSelected(optionValue: string): boolean {
+		return selectedValues.includes(optionValue);
+	}
+
 	function selectOption(nextValue: string): void {
+		if (selectionMode === 'multiple') {
+			const currentValues = Array.isArray(value)
+				? value.slice()
+				: value
+					? [value]
+					: [];
+			const nextValues = currentValues.includes(nextValue)
+				? currentValues.filter((currentValue) => currentValue !== nextValue)
+				: [...currentValues, nextValue];
+			value = nextValues;
+			onValueChange?.(nextValues, nextValue);
+			return;
+		}
+
 		value = nextValue;
-		onValueChange?.(nextValue);
+		onValueChange?.(nextValue, nextValue);
 	}
 </script>
 
@@ -93,9 +127,10 @@
 	aria-label={ariaLabel}
 	data-variant={variant}
 	data-size={size}
+	data-selection-mode={selectionMode}
 	style={rootStyle}
 >
-	{#if variant === 'grouped'}
+	{#if variant === 'grouped' && selectionMode === 'single'}
 		<div class="segmented-control-slider" aria-hidden="true"></div>
 	{/if}
 	{#each options as option (option.value)}
@@ -104,13 +139,14 @@
 			class={cn(
 				'segmented-control-item',
 				styles.item(),
-				option.value === value ? styles.activeItem() : styles.inactiveItem(),
+				isSelected(option.value) ? styles.activeItem() : styles.inactiveItem(),
 				itemClass
 			)}
 			data-variant={variant}
 			data-size={size}
-			data-state={option.value === value ? 'active' : 'inactive'}
-			aria-pressed={option.value === value}
+			data-state={isSelected(option.value) ? 'active' : 'inactive'}
+			aria-pressed={isSelected(option.value)}
+			style={`--segment-accent:${option.dotColor ?? 'var(--app-accent)'}`}
 			onclick={() => selectOption(option.value)}
 		>
 			{#if option.dotColor}
@@ -140,7 +176,7 @@
 	}
 
 	div[role='group'][data-variant='pills'] {
-		gap: 0.375rem;
+		gap: 0.5rem;
 		border: 0;
 		background: transparent;
 		box-shadow: none;
@@ -205,22 +241,27 @@
 	}
 
 	.segmented-control-item[data-variant='pills'] {
-		border-color: var(--ds-glass-border);
+		border-color: color-mix(in oklab, var(--ds-glass-border) 90%, rgba(255, 255, 255, 0.04));
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
 			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.18));
-		box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.04);
+		box-shadow:
+			inset 0 0.5px 0 rgba(255, 255, 255, 0.04),
+			0 0 0 1px rgba(255, 255, 255, 0.015);
+	}
+
+	.segmented-control-item[data-variant='pills']:hover {
+		transform: translateY(-1px);
 	}
 
 	.segmented-control-item[data-variant='pills'][data-state='active'] {
 		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
-			color-mix(
-				in oklab,
-				var(--app-accent) 14%,
-				color-mix(in oklab, var(--ds-glass-surface) 82%, rgba(12, 20, 14, 0.1))
-			);
-		border-color: color-mix(in oklab, var(--app-accent) 75%, var(--ds-glass-border));
-		box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.012)),
+			color-mix(in oklab, var(--segment-accent) 18%, var(--ds-glass-surface));
+		border-color: color-mix(in oklab, var(--segment-accent) 72%, var(--ds-glass-border));
+		box-shadow:
+			inset 0 0.5px 0 rgba(255, 255, 255, 0.07),
+			0 0 0 1px color-mix(in oklab, var(--segment-accent) 24%, transparent);
+		color: color-mix(in oklab, var(--segment-accent) 86%, white);
 	}
 </style>

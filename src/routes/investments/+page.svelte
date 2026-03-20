@@ -19,6 +19,10 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Tag } from '$lib/components/ui/tag';
 	import {
+		ToolbarActionButton,
+		ToolbarActions
+	} from '$lib/components/ui/toolbar-actions';
+	import {
 		Table,
 		SortableTableHead,
 		type SortDirection,
@@ -481,31 +485,33 @@
 
 		{#if view === 'portfolio'}
 			<div class="app-toolbar-right">
-				{#if trackedHoldingsCount > 0}
-					<div class="sync-chip">
-						<span class="sync-label">Tracked holdings</span>
-						<span class="sync-stamp">{formatSyncStamp(latestTrackedSync)}</span>
-					</div>
-					<Button
-						size="sm"
-						variant="outline"
-						class="app-action-btn"
-						onclick={handleRefreshTrackedPrices}
-						disabled={portfolioPending}
-					>
-						Refresh prices
-					</Button>
-				{/if}
+				{#if trackedHoldingsCount > 0 || defaultAccountId}
+					<ToolbarActions>
+						{#if trackedHoldingsCount > 0}
+						<div class="sync-chip">
+							<span class="sync-label">Tracked holdings</span>
+							<span class="sync-stamp">{formatSyncStamp(latestTrackedSync)}</span>
+						</div>
+						<ToolbarActionButton
+							tone="muted"
+							onclick={handleRefreshTrackedPrices}
+							disabled={portfolioPending}
+						>
+							Refresh prices
+						</ToolbarActionButton>
+						{/if}
 
-				{#if defaultAccountId}
-					<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddHoldingDialog}>+ Holding</Button>
+						{#if defaultAccountId}
+							<ToolbarActionButton onclick={openAddHoldingDialog}>+ Holding</ToolbarActionButton>
+						{/if}
+					</ToolbarActions>
 				{/if}
 			</div>
 		{:else}
 			<div class="app-toolbar-right">
-				<Button size="sm" variant="outline" class="app-action-btn" onclick={saveProjectionPreset}>
-					Save
-				</Button>
+				<ToolbarActions>
+					<ToolbarActionButton onclick={saveProjectionPreset}>Save</ToolbarActionButton>
+				</ToolbarActions>
 			</div>
 		{/if}
 	</div>

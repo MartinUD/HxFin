@@ -14,7 +14,7 @@
 	interface Props {
 		filteredCosts: RecurringCost[];
 		categoriesCount: number;
-		selectedCategoryFilter: string;
+		selectedCategoryFilter: string[];
 		categoryMap: Map<string, BudgetCategory>;
 		filteredMonthlyTotal: number;
 		onEditCost: (cost: RecurringCost) => void;
@@ -218,7 +218,7 @@
 				<td colspan={8} class="table-empty-state">
 					{#if categoriesCount === 0}
 						Add a category first, then add costs.
-					{:else if selectedCategoryFilter !== 'all'}
+					{:else if !selectedCategoryFilter.includes('all')}
 						No active costs in this category.
 					{:else}
 						No active costs yet. Click "+ Add Cost" to get started.

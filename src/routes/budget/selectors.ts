@@ -3,11 +3,17 @@ import type { BudgetCategory, BudgetSummary, RecurringCost } from '$lib/schema/b
 
 export function filterActiveCosts(
 	costs: readonly RecurringCost[],
-	selectedCategoryFilter: string,
+	selectedCategoryFilter: string | readonly string[],
 ): RecurringCost[] {
+	const selectedFilters = Array.isArray(selectedCategoryFilter)
+		? selectedCategoryFilter
+		: [selectedCategoryFilter];
+
 	return costs
 		.filter(
-			(cost) => selectedCategoryFilter === 'all' || cost.categoryId === selectedCategoryFilter,
+			(cost) =>
+				selectedFilters.includes('all') ||
+				selectedFilters.includes(cost.categoryId),
 		)
 		.filter((cost) => cost.isActive);
 }

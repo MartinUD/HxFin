@@ -14,6 +14,10 @@
 	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
 	import {
+		ToolbarActionButton,
+		ToolbarActions
+	} from '$lib/components/ui/toolbar-actions';
+	import {
 		Table,
 		SortableTableHead,
 		type SortDirection,
@@ -330,9 +334,9 @@
 		</div>
 
 		<div class="app-toolbar-right">
-			<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddDialog}>
-				+ Loan
-			</Button>
+			<ToolbarActions>
+				<ToolbarActionButton onclick={openAddDialog}>+ Loan</ToolbarActionButton>
+			</ToolbarActions>
 		</div>
 	</div>
 
