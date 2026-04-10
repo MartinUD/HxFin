@@ -5,10 +5,37 @@ import { IsoDateSchema, IsoDateTimeSchema, NullableStringSchema } from '$lib/sch
 export const TransactionMatchMethodSchema = Schema.Literal(
 	'rule_exact',
 	'history_exact',
+	'heuristic_keyword',
+	'codex_auto',
+	'codex_suggested',
 	'manual',
 	'needs_review',
+	'skipped_non_expense',
 );
 export type TransactionMatchMethod = Schema.Schema.Type<typeof TransactionMatchMethodSchema>;
+
+export const TransactionCategorizationStatusSchema = Schema.Literal(
+	'categorized',
+	'suggested',
+	'needs_review',
+	'skipped',
+);
+export type TransactionCategorizationStatus = Schema.Schema.Type<
+	typeof TransactionCategorizationStatusSchema
+>;
+
+export const TransactionCategorizationSourceSchema = Schema.Literal(
+	'rule_exact',
+	'history_exact',
+	'heuristic_keyword',
+	'codex_auto',
+	'codex_suggested',
+	'manual',
+	'skipped_non_expense',
+);
+export type TransactionCategorizationSource = Schema.Schema.Type<
+	typeof TransactionCategorizationSourceSchema
+>;
 
 export const ImportBatchStatusSchema = Schema.Literal('processing', 'completed', 'failed');
 export type ImportBatchStatus = Schema.Schema.Type<typeof ImportBatchStatusSchema>;
@@ -35,6 +62,14 @@ export const ImportedTransactionSchema = Schema.Struct({
 	categoryId: NullableStringSchema,
 	categoryName: NullableStringSchema,
 	matchMethod: TransactionMatchMethodSchema,
+	categorizationStatus: TransactionCategorizationStatusSchema,
+	categorizationSource: TransactionCategorizationSourceSchema,
+	suggestedCategoryId: NullableStringSchema,
+	suggestedCategoryName: NullableStringSchema,
+	suggestedConfidence: Schema.NullOr(Schema.Number),
+	suggestedReason: NullableStringSchema,
+	suggestedByModel: NullableStringSchema,
+	suggestedAt: Schema.NullOr(IsoDateTimeSchema),
 	importBatchId: Schema.String,
 	importBatchSourceName: Schema.String,
 	createdAt: IsoDateTimeSchema,
@@ -59,9 +94,16 @@ export const UploadCsvResultSchema = Schema.Struct({
 	batch: ImportBatchSchema,
 	summary: Schema.Struct({
 		inserted: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		skippedDuplicates: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 		categorizedByRule: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 		categorizedByHistory: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		categorizedByHeuristic: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		categorizedByAi: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		suggestedByAi: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		categorizedByCodex: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		suggestedByCodex: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 		needsReview: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+		skippedNonExpense: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
 	}),
 });
 
@@ -110,3 +152,51 @@ export const AssignTransactionCategoryInputSchema = Schema.Struct({
 export type AssignTransactionCategoryInput = Schema.Schema.Type<
 	typeof AssignTransactionCategoryInputSchema
 >;
+
+export const ReprocessImportTransactionsInputSchema = Schema.Struct({
+	batchId: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+});
+
+export type ReprocessImportTransactionsInput = Schema.Schema.Type<
+	typeof ReprocessImportTransactionsInputSchema
+>;
+
+export const ReprocessImportTransactionsResultSchema = Schema.Struct({
+	processed: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+	categorizedByAi: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+	suggestedByAi: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+	categorizedByCodex: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+	suggestedByCodex: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+	needsReview: Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0)),
+});
+
+export type ReprocessImportTransactionsResult = Schema.Schema.Type<
+	typeof ReprocessImportTransactionsResultSchema
+>;
+
+export const SuggestTransactionCategoryWithAiInputSchema = Schema.Struct({});
+
+export type SuggestTransactionCategoryWithAiInput = Schema.Schema.Type<
+	typeof SuggestTransactionCategoryWithAiInputSchema
+>;
+
+export const SuggestTransactionCategoryWithAiResultSchema = Schema.Struct({
+	transaction: ImportedTransactionSchema,
+	debug: Schema.Struct({
+		prompt: Schema.String,
+		rawResponse: NullableStringSchema,
+		error: NullableStringSchema,
+	}),
+});
+
+export type SuggestTransactionCategoryWithAiResult = Schema.Schema.Type<
+	typeof SuggestTransactionCategoryWithAiResultSchema
+>;
+
+export const SuggestTransactionCategoryWithCodexInputSchema =
+	SuggestTransactionCategoryWithAiInputSchema;
+export type SuggestTransactionCategoryWithCodexInput = SuggestTransactionCategoryWithAiInput;
+
+export const SuggestTransactionCategoryWithCodexResultSchema =
+	SuggestTransactionCategoryWithAiResultSchema;
+export type SuggestTransactionCategoryWithCodexResult = SuggestTransactionCategoryWithAiResult;

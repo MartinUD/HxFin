@@ -14,3 +14,4 @@ data/*.sqlite*
 csv/*.csv
 tmp_avanza*.html
 tmp_avanza*.js
+tempdata

@@ -55,6 +55,13 @@ function parseDate(raw: string): string {
 	return raw.replace(/\//g, '-');
 }
 
+function isReservedRow(bookingDateRaw: string, rubricRaw: string): boolean {
+	return (
+		bookingDateRaw.trim().toLowerCase() === 'reserverat' &&
+		rubricRaw.trim().toLowerCase().startsWith('reservation ')
+	);
+}
+
 export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[] {
 	const rawText = csvText.replace(/^\uFEFF/, '');
 	const lines = rawText
@@ -110,6 +117,10 @@ export function parseNordeaTransactionsCsv(csvText: string): ParsedNordeaCsvRow[
 		const bookingDateRaw = columns[bookingDateIndex] ?? '';
 		const amountRaw = columns[amountIndex] ?? '';
 		const rubricRaw = columns[rubricIndex] ?? '';
+
+		if (isReservedRow(bookingDateRaw, rubricRaw)) {
+			continue;
+		}
 
 		if (
 			bookingDateRaw.trim().length === 0 ||

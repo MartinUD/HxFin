@@ -30,6 +30,20 @@ describe('imports csv parsing', () => {
 		assert.equal(rows[1].sender, null);
 		assert.equal(rows[1].receiver, '0000 00 00001');
 	});
+
+	it('skips pending reservation rows before booked transactions', () => {
+		const csv = [
+			'\uFEFFBokf\u00f6ringsdag;Belopp;Avs\u00e4ndare;Mottagare;Namn;Rubrik;Saldo;Valuta;',
+			'Reserverat;-240,30;3121 00 93707;;;Reservation Kortk\u00f6p Maxi ICA Storma;;SEK;',
+			'2026/03/28;-2387,99;3121 00 93707;;;Kortk\u00f6p 260324 AMAZON.SE* R48DY76Q5;27686,85;SEK;',
+		].join('\n');
+
+		const rows = parseNordeaTransactionsCsv(csv);
+
+		assert.equal(rows.length, 1);
+		assert.equal(rows[0].bookingDate, '2026-03-28');
+		assert.equal(rows[0].description, 'Kortk\u00f6p 260324 AMAZON.SE* R48DY76Q5');
+	});
 });
 
 describe('imports description normalization', () => {

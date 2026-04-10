@@ -1,8 +1,19 @@
 <script lang="ts">
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import SparklesIcon from '@lucide/svelte/icons/sparkles';
 	import type * as Effect from 'effect/Effect';
 	import { type ApiClient, withApiClient } from '$lib/api/client';
 	import * as Alert from '$lib/components/ui/alert';
-	import { Button } from '$lib/components/ui/button';
+	import {
+		SegmentedControl,
+		type SegmentedControlOption
+	} from '$lib/components/ui/segmented-control';
+	import * as Select from '$lib/components/ui/select';
+	import { Tag, type TagVariant } from '$lib/components/ui/tag';
+	import {
+		ToolbarActionButton,
+		ToolbarActions
+	} from '$lib/components/ui/toolbar-actions';
 	import {
 		Table,
 		SortableTableHead,
@@ -15,7 +26,12 @@
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
 	import type { BudgetCategory } from '$lib/schema/budget';
-	import type { ImportBatch, ImportedTransaction, UploadCsvResult } from '$lib/schema/imports';
+	import type {
+		ImportBatch,
+		ImportedTransaction,
+		SuggestTransactionCategoryWithAiResult,
+		TransactionCategorizationStatus
+	} from '$lib/schema/imports';
 	import type { PageData } from './$types';
 
 	interface Props {
@@ -24,29 +40,64 @@
 
 	let { data }: Props = $props();
 
+	const reviewFilterOptions: SegmentedControlOption[] = [
+		{ value: 'all', label: 'All' },
+		{ value: 'suggested', label: 'Suggested' },
+		{ value: 'needs_review', label: 'Needs review' }
+	];
+
 	let hydratedFromLoad = $state(false);
 	let categories = $state<BudgetCategory[]>([]);
 	let batches = $state<ImportBatch[]>([]);
 	let reviewTransactions = $state<ImportedTransaction[]>([]);
 	let selectedBatchId = $state<'all' | string>('all');
 	let selectedFile = $state<File | null>(null);
-	let selectedCategoryByTransactionId = $state<Record<string, string>>({});
 	let pending = $state(false);
 	let uploadPending = $state(false);
+	let reprocessPending = $state(false);
+	let aiSuggestPendingId = $state<string | null>(null);
 	let errorMessage = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
-	let lastUploadResult = $state<UploadCsvResult | null>(null);
+	let reviewFilter = $state<'all' | 'suggested' | 'needs_review'>('all');
+	let lastAiDebug = $state<SuggestTransactionCategoryWithAiResult['debug'] | null>(null);
+	let showAiDebug = $state(false);
 	let transactionSort = $state<{ key: ImportSortKey; direction: SortDirection }>({
 		key: 'date',
 		direction: 'desc'
 	});
 
-	type ImportSortKey = 'date' | 'description' | 'normalized' | 'amount' | 'batch';
+	type ImportSortKey = 'date' | 'description' | 'amount' | 'batch' | 'status';
 
 	let totalImportedRows = $derived(batches.reduce((sum, batch) => sum + batch.rowCount, 0));
-	let sortedReviewTransactions = $derived(reviewTransactions.slice().sort(sortReviewTransactions));
-	let reviewCount = $derived(sortedReviewTransactions.length);
+	let filteredReviewTransactions = $derived.by(() =>
+		reviewTransactions.filter((transaction) => {
+			if (reviewFilter === 'all') {
+				return true;
+			}
 
+			return transaction.categorizationStatus === reviewFilter;
+		})
+	);
+	let sortedReviewTransactions = $derived(filteredReviewTransactions.slice().sort(sortReviewTransactions));
+	let reviewCount = $derived(sortedReviewTransactions.length);
+	let reviewableCount = $derived(
+		reviewTransactions.filter(
+			(transaction) =>
+				transaction.categorizationStatus === 'suggested' ||
+				transaction.categorizationStatus === 'needs_review'
+		).length
+	);
+	let suggestedCount = $derived(
+		reviewTransactions.filter((transaction) => transaction.categorizationStatus === 'suggested').length
+	);
+	let needsReviewCount = $derived(
+		reviewTransactions.filter((transaction) => transaction.categorizationStatus === 'needs_review').length
+	);
+	let selectedBatchLabel = $derived(
+		selectedBatchId === 'all'
+			? 'All batches'
+			: (batches.find((b) => b.id === selectedBatchId)?.sourceName ?? 'All batches')
+	);
 	$effect(() => {
 		if (hydratedFromLoad) {
 			return;
@@ -80,16 +131,6 @@
 					left,
 					right
 				);
-			case 'normalized':
-				return withCreatedAtTiebreak(
-					sortAlphabetical(
-						left.normalizedDescription,
-						right.normalizedDescription,
-						transactionSort.direction
-					),
-					left,
-					right
-				);
 			case 'amount':
 				return withCreatedAtTiebreak(
 					sortValue(left.amount, right.amount, transactionSort.direction),
@@ -106,6 +147,16 @@
 					left,
 					right
 				);
+			case 'status':
+				return withCreatedAtTiebreak(
+					sortAlphabetical(
+						left.categorizationStatus,
+						right.categorizationStatus,
+						transactionSort.direction
+					),
+					left,
+					right
+				);
 		}
 	}
 
@@ -115,6 +166,23 @@
 		right: ImportedTransaction
 	): number {
 		return comparison !== 0 ? comparison : right.createdAt.localeCompare(left.createdAt);
+	}
+
+	function statusVariant(status: TransactionCategorizationStatus): TagVariant {
+		switch (status) {
+			case 'suggested':
+				return 'success';
+			case 'needs_review':
+				return 'warning';
+			case 'categorized':
+				return 'accent';
+			case 'skipped':
+				return 'subtle';
+		}
+	}
+
+	function statusLabel(status: TransactionCategorizationStatus): string {
+		return status.replace('_', ' ');
 	}
 
 	function toErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -135,7 +203,7 @@
 		const [nextBatches, nextReviewTransactions] = await Promise.all([
 			apiRun((client) => client.imports.listImportBatches({ urlParams: { limit: 30 } })),
 			apiRun((client) =>
-				client.imports.listReviewTransactions({
+				client.imports.listImportTransactions({
 					urlParams: {
 						batchId: batchFilter,
 						limit: 300
@@ -169,11 +237,10 @@
 					}
 				})
 			);
-			lastUploadResult = result;
 			selectedFile = null;
 			selectedBatchId = 'all';
 			await refreshImportData();
-			successMessage = `Imported ${result.summary.inserted} transactions from ${result.batch.sourceName}`;
+			successMessage = `Imported ${result.summary.inserted} transactions from ${result.batch.sourceName}. ${result.summary.categorizedByRule + result.summary.categorizedByHistory + result.summary.categorizedByHeuristic + result.summary.categorizedByAi} categorized, ${result.summary.suggestedByAi} suggested, ${result.summary.needsReview} left for review, ${result.summary.skippedDuplicates} duplicates skipped.`;
 		} catch (error) {
 			errorMessage = toErrorMessage(error, 'Failed to import CSV');
 		} finally {
@@ -181,9 +248,8 @@
 		}
 	}
 
-	async function handleBatchFilterChange(event: Event): Promise<void> {
-		const select = event.target as HTMLSelectElement;
-		selectedBatchId = (select.value || 'all') as 'all' | string;
+	async function handleBatchFilterChange(value: string): Promise<void> {
+		selectedBatchId = (value || 'all') as 'all' | string;
 
 		pending = true;
 		errorMessage = null;
@@ -196,13 +262,32 @@
 		}
 	}
 
-	async function handleAssignCategory(
-		transactionId: string,
-		saveRule: boolean
-	): Promise<void> {
-		const categoryId = selectedCategoryByTransactionId[transactionId] ?? '';
-		if (!categoryId) {
-			errorMessage = 'Select a category before applying';
+	async function handleReprocessReviewQueue(): Promise<void> {
+		reprocessPending = true;
+		errorMessage = null;
+		successMessage = null;
+
+		try {
+			const batchId = selectedBatchId !== 'all' ? selectedBatchId : undefined;
+			const result = await apiRun((client) =>
+				client.imports.reprocessImportTransactions({
+					payload: {
+						batchId
+					}
+				})
+			);
+			await refreshImportData();
+			successMessage = `Processed ${result.processed} review transactions. ${result.categorizedByAi} auto-categorized, ${result.suggestedByAi} suggested, ${result.needsReview} still need review.`;
+		} catch (error) {
+			errorMessage = toErrorMessage(error, 'Failed to run AI categorization');
+		} finally {
+			reprocessPending = false;
+		}
+	}
+
+	async function handleAcceptSuggestion(transaction: ImportedTransaction): Promise<void> {
+		if (!transaction.suggestedCategoryId) {
+			errorMessage = 'No suggested category to accept';
 			return;
 		}
 
@@ -213,24 +298,80 @@
 		try {
 			const updated = await apiRun((client) =>
 				client.imports.assignImportTransactionCategory({
-					path: { transactionId },
+					path: { transactionId: transaction.id },
 					payload: {
-						categoryId,
-						saveRule
+						categoryId: transaction.suggestedCategoryId!,
+						saveRule: true
 					}
 				})
 			);
 
-			reviewTransactions = reviewTransactions.filter((tx) => tx.id !== transactionId);
-			delete selectedCategoryByTransactionId[transactionId];
-			selectedCategoryByTransactionId = { ...selectedCategoryByTransactionId };
-			successMessage = saveRule
-				? `Assigned and saved rule for "${updated.description}"`
-				: `Assigned category for "${updated.description}"`;
+			reviewTransactions = reviewTransactions.map((current) =>
+				current.id === updated.id ? updated : current
+			);
+			successMessage = `Accepted suggestion and saved merchant rule for "${updated.description}"`;
+		} catch (error) {
+			errorMessage = toErrorMessage(error, 'Failed to accept suggestion');
+		} finally {
+			pending = false;
+		}
+	}
+
+	async function handleInlineCategoryChange(transaction: ImportedTransaction, categoryId: string): Promise<void> {
+		if (!categoryId) return;
+
+		pending = true;
+		errorMessage = null;
+		successMessage = null;
+
+		try {
+			const updated = await apiRun((client) =>
+				client.imports.assignImportTransactionCategory({
+					path: { transactionId: transaction.id },
+					payload: {
+						categoryId,
+						saveRule: true
+					}
+				})
+			);
+
+			reviewTransactions = reviewTransactions.map((current) =>
+				current.id === updated.id ? updated : current
+			);
+			successMessage = `Assigned category and saved merchant rule for "${updated.description}"`;
 		} catch (error) {
 			errorMessage = toErrorMessage(error, 'Failed to assign category');
 		} finally {
 			pending = false;
+		}
+	}
+
+	async function handleAskAi(transaction: ImportedTransaction): Promise<void> {
+		aiSuggestPendingId = transaction.id;
+		errorMessage = null;
+		successMessage = null;
+		lastAiDebug = null;
+
+		try {
+			const result = await apiRun((client) =>
+				client.imports.suggestImportTransactionCategoryWithAi({
+					path: { transactionId: transaction.id },
+					payload: {}
+				})
+			);
+			const updated = result.transaction;
+
+			reviewTransactions = reviewTransactions.map((current) =>
+				current.id === updated.id ? updated : current
+			);
+			lastAiDebug = result.debug;
+			successMessage = updated.suggestedCategoryName
+				? `AI suggested "${updated.suggestedCategoryName}" for "${updated.description}"`
+				: `AI could not confidently suggest a category for "${updated.description}"`;
+		} catch (error) {
+			errorMessage = toErrorMessage(error, 'Failed to ask AI for a suggestion');
+		} finally {
+			aiSuggestPendingId = null;
 		}
 	}
 </script>
@@ -243,112 +384,205 @@
 	<div class="app-toolbar">
 		<div class="app-toolbar-left">
 			<h1 class="app-page-title">Imports</h1>
-			<div class="app-pill-group review-summary" aria-label="Import summary">
-				<span class="summary-pill">{batches.length} batches</span>
-				<span class="summary-pill">{totalImportedRows} rows</span>
-				<span class="summary-pill">{reviewCount} in review</span>
-			</div>
+
+			<SegmentedControl
+				bind:value={reviewFilter}
+				options={reviewFilterOptions}
+				ariaLabel="Filter by review state"
+				class="import-filter"
+			/>
+
+			<div class="app-toolbar-divider" aria-hidden="true"></div>
+
+			<Select.Root
+				type="single"
+				value={selectedBatchId}
+				onValueChange={(value: string) => handleBatchFilterChange(value)}
+			>
+				<Select.Trigger class="batch-filter-trigger">
+					{selectedBatchLabel}
+				</Select.Trigger>
+				<Select.Content class="bg-card border-border">
+					<Select.Item value="all" class="text-foreground cursor-pointer">All batches</Select.Item>
+					{#each batches as batch (batch.id)}
+						<Select.Item value={batch.id} class="text-foreground cursor-pointer">
+							{batch.sourceName} ({batch.importedAt.slice(0, 10)})
+						</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
-		<div class="app-toolbar-right import-actions">
-			<label class="file-input-wrap">
-				<span class="file-input-label">{selectedFile?.name ?? 'Choose CSV'}</span>
-				<input
-					type="file"
-					accept=".csv,text/csv"
-					onchange={onFileChange}
-					class="file-input"
-				/>
-			</label>
-			<Button class="app-action-btn" onclick={handleUploadCsv} disabled={uploadPending || !selectedFile}>
-				{uploadPending ? 'Importing...' : 'Import CSV'}
-			</Button>
+
+		<div class="app-toolbar-right">
+			<ToolbarActions>
+				<ToolbarActionButton
+					tone="muted"
+					onclick={handleReprocessReviewQueue}
+					disabled={reprocessPending || reviewableCount === 0}
+				>
+					{reprocessPending ? 'Running AI...' : 'Run AI'}
+				</ToolbarActionButton>
+				<label class="file-input-wrap">
+					<span class="file-input-label">{selectedFile?.name ?? 'Choose CSV'}</span>
+					<input
+						type="file"
+						accept=".csv,text/csv"
+						onchange={onFileChange}
+						class="file-input"
+					/>
+				</label>
+				<ToolbarActionButton onclick={handleUploadCsv} disabled={uploadPending || !selectedFile}>
+					{uploadPending ? 'Importing...' : 'Import CSV'}
+				</ToolbarActionButton>
+			</ToolbarActions>
 		</div>
 	</div>
 
 	{#if errorMessage}
 		<Alert.Root class="border-destructive/50 bg-destructive/10">
-			<Alert.Description class="flex items-center justify-between text-destructive">
+			<Alert.Description class="flex items-center justify-between text-destructive text-xs">
 				{errorMessage}
-				<button type="button" onclick={() => (errorMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
+				<button type="button" onclick={() => (errorMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
 
 	{#if successMessage}
 		<Alert.Root class="border-[var(--app-border)] bg-[var(--app-accent-glow)]">
-			<Alert.Description class="flex items-center justify-between text-[var(--app-accent-light)]">
+			<Alert.Description class="flex items-center justify-between text-[var(--app-accent-light)] text-xs">
 				{successMessage}
-				<button type="button" onclick={() => (successMessage = null)} class="ml-4 opacity-70 hover:opacity-100 text-sm leading-none">✕</button>
+				<button type="button" onclick={() => (successMessage = null)} class="ml-4 opacity-60 hover:opacity-100 text-xs">✕</button>
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
 
-	<div class="filter-row">
-		<div class="filter-group">
-			<label for="batch-filter" class="filter-label">Batch filter</label>
-			<select id="batch-filter" class="filter-select" value={selectedBatchId} onchange={handleBatchFilterChange}>
-				<option value="all">All batches</option>
-				{#each batches as batch}
-					<option value={batch.id}>{batch.sourceName} ({batch.importedAt.slice(0, 10)})</option>
-				{/each}
-			</select>
+	{#if lastAiDebug}
+		<div class="ai-debug-bar">
+			<button type="button" class="ai-debug-toggle" onclick={() => (showAiDebug = !showAiDebug)}>
+				{showAiDebug ? 'Hide' : 'Show'} AI debug
+			</button>
+			<button type="button" class="ai-debug-toggle" onclick={() => { lastAiDebug = null; showAiDebug = false; }}>
+				Dismiss
+			</button>
 		</div>
-		{#if lastUploadResult}
-			<div class="last-import-summary">
-				<span>{lastUploadResult.batch.sourceName}</span>
-				<span>{lastUploadResult.summary.inserted} inserted</span>
-				<span>{lastUploadResult.summary.needsReview} review</span>
-			</div>
+		{#if showAiDebug}
+			<Alert.Root class="border-[var(--app-border)] bg-[rgba(255,255,255,0.03)]">
+				<Alert.Description>
+					<div class="codex-debug">
+						<div class="codex-debug-block">
+							<div class="codex-debug-label">Prompt</div>
+							<pre>{lastAiDebug.prompt}</pre>
+						</div>
+						<div class="codex-debug-block">
+							<div class="codex-debug-label">Raw output</div>
+							<pre>{lastAiDebug.rawResponse ?? '(no output captured)'}</pre>
+						</div>
+						{#if lastAiDebug.error}
+							<div class="codex-debug-block">
+								<div class="codex-debug-label">Error</div>
+								<pre>{lastAiDebug.error}</pre>
+							</div>
+						{/if}
+					</div>
+				</Alert.Description>
+			</Alert.Root>
 		{/if}
-	</div>
+	{/if}
 
 	<Table fill>
 		{#snippet footer()}
-			<span class="table-summary-label">Review queue</span>
-			<span class="table-summary-value">{reviewCount}</span>
+			<div class="table-summary-copy">
+				<span class="table-summary-label">Transactions</span>
+				<span class="table-total-count">{reviewCount} shown · {suggestedCount} suggested · {needsReviewCount} needs review</span>
+			</div>
+			<span class="table-summary-value">{batches.length} batches · {totalImportedRows} imported</span>
 		{/snippet}
 		<thead>
 			<tr>
-				<SortableTableHead class="w-[10%]" label="Date" active={transactionSort.key === 'date'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('date')} />
-				<SortableTableHead class="w-[24%]" label="Description" active={transactionSort.key === 'description'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('description')} />
-				<SortableTableHead class="w-[14%]" label="Normalized" active={transactionSort.key === 'normalized'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('normalized')} />
-				<SortableTableHead class="w-[10%]" label="Amount" align="right" active={transactionSort.key === 'amount'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('amount')} />
-				<SortableTableHead class="w-[16%]" label="Batch" active={transactionSort.key === 'batch'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('batch')} />
-				<th class="w-[16%]">Category</th>
-				<th class="w-[10%]"></th>
+				<SortableTableHead class="w-[28%]" label="Transaction" active={transactionSort.key === 'description'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('description')} />
+				<SortableTableHead class="w-[11%]" label="Amount" align="right" active={transactionSort.key === 'amount'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('amount')} />
+				<SortableTableHead class="w-[14%]" label="Batch" active={transactionSort.key === 'batch'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('batch')} />
+				<SortableTableHead class="w-[10%]" label="Status" active={transactionSort.key === 'status'} direction={transactionSort.direction} onToggle={() => toggleTransactionSort('status')} />
+				<th class="w-[17%]">Suggestion</th>
+				<th class="w-[12%]">Category</th>
+				<th class="actions-head"></th>
 			</tr>
 		</thead>
 		<tbody>
 			{#each sortedReviewTransactions as transaction (transaction.id)}
-				<tr>
-					<td class="text-muted-foreground text-sm">{transaction.bookingDate}</td>
-					<td class="text-foreground text-sm">{transaction.description}</td>
-					<td class="text-muted-foreground text-xs">{transaction.normalizedDescription}</td>
-					<td class="text-right tabular-nums text-foreground text-sm">{formatCurrency(transaction.amount)}</td>
-					<td class="text-muted-foreground text-xs">{transaction.importBatchSourceName}</td>
+				<tr class="group">
 					<td>
-						<select
-							class="category-select"
-							value={selectedCategoryByTransactionId[transaction.id] ?? ''}
-							onchange={(event) => {
-								const target = event.target as HTMLSelectElement;
-								selectedCategoryByTransactionId[transaction.id] = target.value;
-								selectedCategoryByTransactionId = { ...selectedCategoryByTransactionId };
+						<div class="item-name">{transaction.description}</div>
+						<div class="muted-copy">{transaction.normalizedDescription} · {transaction.bookingDate}</div>
+					</td>
+
+					<td class="text-right">
+						<div class="mono">{formatCurrency(transaction.amount)}</div>
+					</td>
+
+					<td>
+						<div class="muted-copy no-top-margin">{transaction.importBatchSourceName}</div>
+					</td>
+
+					<td>
+						<Tag variant={statusVariant(transaction.categorizationStatus)} size="sm">
+							{statusLabel(transaction.categorizationStatus)}
+						</Tag>
+					</td>
+
+					<td>
+						{#if transaction.suggestedCategoryName}
+							<div class="suggestion-name">{transaction.suggestedCategoryName}</div>
+							{#if transaction.suggestedConfidence !== null}
+								<div class="muted-copy">{Math.round(transaction.suggestedConfidence * 100)}%{#if transaction.suggestedReason} · {transaction.suggestedReason}{/if}</div>
+							{/if}
+						{:else}
+							<span class="muted-copy no-top-margin">&mdash;</span>
+						{/if}
+					</td>
+
+					<td>
+						<Select.Root
+							type="single"
+							value={transaction.categoryId ?? '__none__'}
+							onValueChange={(value: string) => {
+								if (value && value !== '__none__') handleInlineCategoryChange(transaction, value);
 							}}
 						>
-							<option value="">Select category</option>
-							{#each categories as category}
-								<option value={category.id}>{category.name}</option>
-							{/each}
-						</select>
+							<Select.Trigger size="sm" class="category-trigger">
+								{transaction.categoryName ?? 'Select category'}
+							</Select.Trigger>
+							<Select.Content class="bg-card border-border">
+								{#each categories as category (category.id)}
+									<Select.Item value={category.id} class="text-foreground cursor-pointer">{category.name}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
 					</td>
+
 					<td>
 						<div class="row-actions">
-							<button type="button" class="row-action-btn" onclick={() => handleAssignCategory(transaction.id, false)} disabled={pending}>
-								Apply
-							</button>
-							<button type="button" class="row-action-btn accent" onclick={() => handleAssignCategory(transaction.id, true)} disabled={pending}>
-								Apply + Rule
+							{#if transaction.categorizationStatus === 'suggested' && transaction.suggestedCategoryId}
+								<button
+									type="button"
+									class="row-action accent"
+									onclick={() => handleAcceptSuggestion(transaction)}
+									disabled={pending}
+									aria-label="Accept suggestion"
+									title="Accept suggestion"
+								>
+									<CheckIcon size={12} strokeWidth={1.8} />
+								</button>
+							{/if}
+							<button
+								type="button"
+								class="row-action"
+								onclick={() => handleAskAi(transaction)}
+								disabled={aiSuggestPendingId === transaction.id}
+								aria-label="Ask AI for suggestion"
+								title="Ask AI for suggestion"
+							>
+								<SparklesIcon size={12} strokeWidth={1.8} />
 							</button>
 						</div>
 					</td>
@@ -356,7 +590,7 @@
 			{:else}
 				<tr>
 					<td colspan={7} class="table-empty-state">
-						No transactions in review queue.
+						No imported transactions match the current filters.
 					</td>
 				</tr>
 			{/each}
@@ -364,50 +598,65 @@
 	</Table>
 </div>
 
+
 <style>
 	.imports-page {
 		gap: 14px;
 	}
 
-	.import-actions {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		flex-wrap: wrap;
+	:global(.import-filter) {
+		margin-left: 4px;
+		max-width: 100%;
 	}
 
-	.review-summary {
-		gap: 0.5rem;
-	}
-
-	.summary-pill {
-		display: inline-flex;
-		align-items: center;
-		height: 2.1rem;
-		padding: 0 0.8rem;
-		border-radius: 999px;
-		border: 1px solid var(--ds-glass-border);
-		background: rgba(255, 255, 255, 0.03);
+	/* Match SegmentedControl height: item h-11 (2.75rem) + p-1 padding (0.5rem) + 2px border = 3.27rem */
+	/* Match SegmentedControl height: item h-11 (2.75rem) + p-1 padding (0.5rem) + 2px border */
+	:global([data-slot='select-trigger'].batch-filter-trigger) {
+		height: calc(2.75rem + 0.5rem + 2px);
+		min-height: calc(2.75rem + 0.5rem + 2px);
+		padding-inline: 1.15rem;
+		border-radius: 0.95rem;
+		border-color: var(--ds-glass-border);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
 		color: var(--app-text-secondary);
-		font-size: 0.8rem;
-		font-weight: 600;
+		font-size: 0.92rem;
+		font-weight: 700;
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+	}
+
+	:global([data-slot='select-trigger'].batch-filter-trigger:hover) {
+		color: var(--app-text-primary);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.1));
 	}
 
 	.file-input-wrap {
 		position: relative;
 		display: inline-flex;
 		align-items: center;
-		height: 2.8rem;
-		padding: 0 0.95rem;
-		border-radius: 0.9rem;
+		height: 3rem;
+		padding-inline: 1.15rem;
+		border-radius: 0.95rem;
 		border: 1px solid var(--ds-glass-border);
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
 			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
 		color: var(--app-text-secondary);
-		font-size: 0.86rem;
-		font-weight: 600;
+		font-size: 0.96rem;
+		font-weight: 700;
 		cursor: pointer;
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+		transition: color 0.16s var(--ds-ease), background 0.16s var(--ds-ease);
+	}
+
+	.file-input-wrap:hover {
+		color: var(--app-text-primary);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(12, 20, 14, 0.1));
 	}
 
 	.file-input-label {
@@ -424,83 +673,161 @@
 		cursor: pointer;
 	}
 
-	.last-import-summary {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		font-size: 0.78rem;
-		color: var(--app-text-secondary);
-	}
-
-	.filter-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		flex-wrap: wrap;
-	}
-
-	.filter-group {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.filter-label {
-		font-size: 0.67rem;
+	/* Table cell styles (matching loans/wishlist patterns) */
+	.item-name {
+		font-size: 1.16rem;
 		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
+		color: var(--app-text-primary);
+	}
+
+	.muted-copy {
+		margin-top: 0.24rem;
+		font-size: 0.76rem;
 		color: var(--app-text-muted);
 	}
 
-	.filter-select {
-		padding: 6px 9px;
-		border-radius: 8px;
-		border: 1px solid var(--app-border);
-		background: rgba(0, 0, 0, 0.35);
-		color: var(--app-text-primary);
-		font-size: 0.76rem;
+	.no-top-margin {
+		margin-top: 0;
 	}
 
-	.category-select {
+	.mono {
+		font-family: var(--ds-font-mono);
+		font-size: 0.95rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		color: var(--app-text-primary);
+	}
+
+	.suggestion-name {
+		font-size: 0.86rem;
+		font-weight: 600;
+		color: var(--app-text-primary);
+	}
+
+	:global(.category-trigger) {
 		width: 100%;
-		padding: 4px 6px;
-		font-size: 0.74rem;
-		border-radius: 7px;
-		border: 1px solid var(--app-border);
-		background: rgba(0, 0, 0, 0.34);
-		color: var(--app-text-primary);
+		font-size: 0.78rem !important;
+		font-weight: 600;
+		border-radius: 0.55rem;
+		background: rgba(0, 0, 0, 0.25);
 	}
 
+	:global(.category-trigger [data-slot='select-value']) {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		display: block !important;
+		min-width: 0;
+	}
+
+	.actions-head {
+		width: 88px;
+	}
+
+	/* Row actions — group hover reveal (matching loans) */
 	.row-actions {
 		display: flex;
-		gap: 5px;
 		justify-content: flex-end;
+		gap: 0.35rem;
+		opacity: 0;
+		transition: opacity 0.16s var(--ds-ease);
 	}
 
-	.row-action-btn {
-		font-size: 0.67rem;
-		color: var(--app-text-secondary);
-		background: transparent;
+	:global(.group:hover) .row-actions,
+	:global(.group:focus-within) .row-actions {
+		opacity: 1;
+	}
+
+	.row-action {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.9rem;
+		height: 1.9rem;
+		border-radius: 0.55rem;
 		border: 1px solid var(--app-border);
-		border-radius: 6px;
-		padding: 3px 6px;
+		background: rgba(255, 255, 255, 0.025);
+		color: var(--app-text-secondary);
+		transition: color 0.16s var(--ds-ease), border-color 0.16s var(--ds-ease), background-color 0.16s var(--ds-ease);
 	}
 
-	.row-action-btn:hover:not(:disabled) {
-		border-color: var(--app-border-focus);
+	.row-action:hover:not(:disabled) {
 		color: var(--app-text-primary);
+		border-color: var(--app-border-focus);
+		background: rgba(255, 255, 255, 0.05);
 	}
 
-	.row-action-btn.accent:hover:not(:disabled) {
+	.row-action.accent:hover:not(:disabled) {
 		color: var(--app-accent-light);
 		border-color: color-mix(in oklab, var(--app-accent) 55%, var(--app-border));
 	}
 
-	.row-action-btn:disabled {
+	.row-action:disabled {
 		opacity: 0.45;
 		cursor: not-allowed;
+	}
+
+	/* AI debug toggle bar */
+	.ai-debug-bar {
+		display: flex;
+		gap: 8px;
+	}
+
+	.ai-debug-toggle {
+		font-size: 0.72rem;
+		font-weight: 600;
+		color: var(--app-text-muted);
+		background: transparent;
+		border: 1px solid var(--app-border);
+		border-radius: 6px;
+		padding: 4px 10px;
+		transition: color 0.16s var(--ds-ease), border-color 0.16s var(--ds-ease);
+	}
+
+	.ai-debug-toggle:hover {
+		color: var(--app-text-secondary);
+		border-color: var(--app-border-focus);
+	}
+
+	.codex-debug {
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+		color: var(--app-text-primary);
+	}
+
+	.codex-debug-block {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+
+	.codex-debug-label {
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--app-text-muted);
+	}
+
+	.codex-debug pre {
+		margin: 0;
+		white-space: pre-wrap;
+		word-break: break-word;
+		font-size: 0.72rem;
+		line-height: 1.45;
+		color: var(--app-text-primary);
+	}
+
+	.table-total-count {
+		font-size: 0.8rem;
+		color: var(--app-text-secondary);
+	}
+
+	@media (max-width: 768px) {
+		.row-actions {
+			opacity: 1;
+		}
 	}
 
 	@media (max-width: 640px) {
@@ -509,4 +836,3 @@
 		}
 	}
 </style>
-

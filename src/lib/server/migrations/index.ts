@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { AppDatabase } from '$lib/server/db';
 
 export interface Migration {
@@ -276,7 +278,7 @@ export const migrations: Migration[] = [
 					amount NUMERIC NOT NULL,
 					currency TEXT NOT NULL DEFAULT 'SEK',
 					category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
-					match_method TEXT NOT NULL CHECK(match_method IN ('rule_exact', 'history_exact', 'manual', 'needs_review')),
+					match_method TEXT NOT NULL CHECK(match_method IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'needs_review', 'skipped_non_expense')),
 					import_batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
 					created_at TEXT NOT NULL,
 					updated_at TEXT NOT NULL
@@ -794,6 +796,396 @@ export const migrations: Migration[] = [
 
 				CREATE INDEX IF NOT EXISTS idx_wishlist_category_id
 				ON wishlist_items (category_id);
+			`);
+		},
+	},
+	{
+		id: '20260320_0014_import_categorization_rework',
+		description: 'Extend imported transactions with Codex categorization metadata and cache',
+		up: (db) => {
+			const transactionColumns = db.prepare(`PRAGMA table_info(transactions)`).all() as Array<{
+				name: string;
+			}>;
+
+			const ensureTransactionColumn = (name: string, sql: string) => {
+				if (!transactionColumns.some((column) => column.name === name)) {
+					db.exec(sql);
+				}
+			};
+
+			ensureTransactionColumn(
+				'categorization_status',
+				`ALTER TABLE transactions ADD COLUMN categorization_status TEXT NOT NULL DEFAULT 'needs_review' CHECK(categorization_status IN ('categorized', 'suggested', 'needs_review', 'skipped'));`,
+			);
+			ensureTransactionColumn(
+				'categorization_source',
+				`ALTER TABLE transactions ADD COLUMN categorization_source TEXT NOT NULL DEFAULT 'rule_exact' CHECK(categorization_source IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'skipped_non_expense'));`,
+			);
+			ensureTransactionColumn(
+				'suggested_category_id',
+				`ALTER TABLE transactions ADD COLUMN suggested_category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL;`,
+			);
+			ensureTransactionColumn(
+				'suggested_confidence',
+				`ALTER TABLE transactions ADD COLUMN suggested_confidence NUMERIC;`,
+			);
+			ensureTransactionColumn(
+				'suggested_reason',
+				`ALTER TABLE transactions ADD COLUMN suggested_reason TEXT;`,
+			);
+			ensureTransactionColumn(
+				'suggested_by_model',
+				`ALTER TABLE transactions ADD COLUMN suggested_by_model TEXT;`,
+			);
+			ensureTransactionColumn(
+				'suggested_at',
+				`ALTER TABLE transactions ADD COLUMN suggested_at TEXT;`,
+			);
+
+			db.exec(`
+				UPDATE transactions
+				SET categorization_status = CASE
+					WHEN amount >= 0 THEN 'skipped'
+					WHEN match_method IN ('rule_exact', 'history_exact', 'manual') THEN 'categorized'
+					ELSE 'needs_review'
+				END
+				WHERE categorization_status IS NULL OR categorization_status = 'needs_review';
+
+				UPDATE transactions
+				SET categorization_source = CASE
+					WHEN amount >= 0 THEN 'skipped_non_expense'
+					WHEN match_method = 'rule_exact' THEN 'rule_exact'
+					WHEN match_method = 'history_exact' THEN 'history_exact'
+					WHEN match_method = 'manual' THEN 'manual'
+					ELSE 'rule_exact'
+				END
+				WHERE categorization_source IS NULL OR categorization_source = 'rule_exact';
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_categorization_status
+				ON transactions (categorization_status);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_categorization_source
+				ON transactions (categorization_source);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_suggested_category_id
+				ON transactions (suggested_category_id);
+
+				CREATE TABLE IF NOT EXISTS merchant_category_codex_cache (
+					id TEXT PRIMARY KEY,
+					normalized_description TEXT NOT NULL,
+					sample_description TEXT NOT NULL,
+					suggested_category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
+					confidence NUMERIC NOT NULL,
+					reason TEXT,
+					model_label TEXT NOT NULL,
+					prompt_version TEXT NOT NULL,
+					categories_hash TEXT NOT NULL,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+
+				CREATE UNIQUE INDEX IF NOT EXISTS merchant_category_codex_cache_lookup_unique
+				ON merchant_category_codex_cache (
+					normalized_description,
+					prompt_version,
+					categories_hash
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_merchant_category_codex_cache_category_id
+				ON merchant_category_codex_cache (suggested_category_id);
+			`);
+		},
+	},
+	{
+		id: '20260320_0015_transactions_match_method_expansion',
+		description: 'Expand imported transaction match methods for heuristic and Codex categorization',
+		up: (db) => {
+			const createTableRow = db
+				.prepare(
+					`SELECT sql
+					 FROM sqlite_master
+					 WHERE type = 'table' AND name = 'transactions'`,
+				)
+				.get() as { sql: string | null } | undefined;
+
+			const createTableSql = createTableRow?.sql ?? '';
+			if (
+				createTableSql.includes('heuristic_keyword') &&
+				createTableSql.includes('codex_auto') &&
+				createTableSql.includes('codex_suggested') &&
+				createTableSql.includes('skipped_non_expense')
+			) {
+				return;
+			}
+
+			db.exec(`
+				ALTER TABLE transactions RENAME TO transactions_legacy_0015;
+
+				CREATE TABLE transactions (
+					id TEXT PRIMARY KEY,
+					booking_date TEXT NOT NULL,
+					description TEXT NOT NULL,
+					normalized_description TEXT NOT NULL,
+					amount NUMERIC NOT NULL,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
+					match_method TEXT NOT NULL CHECK(match_method IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'needs_review', 'skipped_non_expense')),
+					categorization_status TEXT NOT NULL DEFAULT 'needs_review' CHECK(categorization_status IN ('categorized', 'suggested', 'needs_review', 'skipped')),
+					categorization_source TEXT NOT NULL DEFAULT 'rule_exact' CHECK(categorization_source IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'skipped_non_expense')),
+					suggested_category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
+					suggested_confidence NUMERIC,
+					suggested_reason TEXT,
+					suggested_by_model TEXT,
+					suggested_at TEXT,
+					import_batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+
+				INSERT INTO transactions (
+					id,
+					booking_date,
+					description,
+					normalized_description,
+					amount,
+					currency,
+					category_id,
+					match_method,
+					categorization_status,
+					categorization_source,
+					suggested_category_id,
+					suggested_confidence,
+					suggested_reason,
+					suggested_by_model,
+					suggested_at,
+					import_batch_id,
+					created_at,
+					updated_at
+				)
+				SELECT
+					id,
+					booking_date,
+					description,
+					normalized_description,
+					amount,
+					COALESCE(currency, 'SEK'),
+					category_id,
+					CASE
+						WHEN categorization_source IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'skipped_non_expense')
+							THEN categorization_source
+						WHEN match_method IN ('rule_exact', 'history_exact', 'manual', 'needs_review')
+							THEN match_method
+						WHEN amount >= 0
+							THEN 'skipped_non_expense'
+						ELSE 'needs_review'
+					END,
+					COALESCE(categorization_status, CASE
+						WHEN amount >= 0 THEN 'skipped'
+						WHEN category_id IS NOT NULL THEN 'categorized'
+						ELSE 'needs_review'
+					END),
+					COALESCE(categorization_source, CASE
+						WHEN amount >= 0 THEN 'skipped_non_expense'
+						WHEN match_method = 'rule_exact' THEN 'rule_exact'
+						WHEN match_method = 'history_exact' THEN 'history_exact'
+						WHEN match_method = 'manual' THEN 'manual'
+						ELSE 'rule_exact'
+					END),
+					suggested_category_id,
+					suggested_confidence,
+					suggested_reason,
+					suggested_by_model,
+					suggested_at,
+					import_batch_id,
+					created_at,
+					updated_at
+				FROM transactions_legacy_0015;
+
+				DROP TABLE transactions_legacy_0015;
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_import_batch_id
+				ON transactions (import_batch_id);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_normalized_description
+				ON transactions (normalized_description);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_category_id
+				ON transactions (category_id);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_match_method
+				ON transactions (match_method);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_categorization_status
+				ON transactions (categorization_status);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_categorization_source
+				ON transactions (categorization_source);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_suggested_category_id
+				ON transactions (suggested_category_id);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_booking_date
+				ON transactions (booking_date);
+			`);
+		},
+	},
+	{
+		id: '20260329_0016_transaction_import_fingerprint',
+		description: 'Add transaction import fingerprint uniqueness for duplicate import detection',
+		up: (db) => {
+			const transactionColumns = db.prepare(`PRAGMA table_info(transactions)`).all() as Array<{
+				name: string;
+			}>;
+			const hasImportFingerprint = transactionColumns.some(
+				(column) => column.name === 'import_fingerprint',
+			);
+
+			if (!hasImportFingerprint) {
+				db.exec(`ALTER TABLE transactions ADD COLUMN import_fingerprint TEXT;`);
+			}
+
+			const rows = db
+				.prepare(
+					`SELECT id, booking_date, description, amount, currency
+					 FROM transactions
+					 WHERE import_fingerprint IS NULL OR TRIM(import_fingerprint) = ''`,
+				)
+				.all() as Array<{
+					id: string;
+					booking_date: string;
+					description: string;
+					amount: number;
+					currency: string | null;
+				}>;
+
+			const updateFingerprint = db.prepare(`
+				UPDATE transactions
+				SET import_fingerprint = ?
+				WHERE id = ?
+			`);
+
+			for (const row of rows) {
+				const fingerprint = createHash('sha256')
+					.update(
+						[
+							row.booking_date,
+							row.description.trim(),
+							Number(row.amount).toFixed(2),
+							(row.currency ?? 'SEK').toUpperCase(),
+						].join('|'),
+					)
+					.digest('hex');
+				updateFingerprint.run(fingerprint, row.id);
+			}
+
+			const createTableRow = db
+				.prepare(
+					`SELECT sql
+					 FROM sqlite_master
+					 WHERE type = 'table' AND name = 'transactions'`,
+				)
+				.get() as { sql: string | null } | undefined;
+			const createTableSql = createTableRow?.sql ?? '';
+			if (!createTableSql.includes('import_fingerprint TEXT NOT NULL')) {
+				db.exec(`
+					ALTER TABLE transactions RENAME TO transactions_legacy_0016;
+
+					CREATE TABLE transactions (
+						id TEXT PRIMARY KEY,
+						booking_date TEXT NOT NULL,
+						description TEXT NOT NULL,
+						normalized_description TEXT NOT NULL,
+						amount NUMERIC NOT NULL,
+						currency TEXT NOT NULL DEFAULT 'SEK',
+						import_fingerprint TEXT NOT NULL,
+						category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
+						match_method TEXT NOT NULL CHECK(match_method IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'needs_review', 'skipped_non_expense')),
+						categorization_status TEXT NOT NULL DEFAULT 'needs_review' CHECK(categorization_status IN ('categorized', 'suggested', 'needs_review', 'skipped')),
+						categorization_source TEXT NOT NULL DEFAULT 'rule_exact' CHECK(categorization_source IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'skipped_non_expense')),
+						suggested_category_id TEXT REFERENCES budget_categories(id) ON DELETE SET NULL,
+						suggested_confidence NUMERIC,
+						suggested_reason TEXT,
+						suggested_by_model TEXT,
+						suggested_at TEXT,
+						import_batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+						created_at TEXT NOT NULL,
+						updated_at TEXT NOT NULL
+					);
+
+					INSERT INTO transactions (
+						id,
+						booking_date,
+						description,
+						normalized_description,
+						amount,
+						currency,
+						import_fingerprint,
+						category_id,
+						match_method,
+						categorization_status,
+						categorization_source,
+						suggested_category_id,
+						suggested_confidence,
+						suggested_reason,
+						suggested_by_model,
+						suggested_at,
+						import_batch_id,
+						created_at,
+						updated_at
+					)
+					SELECT
+						id,
+						booking_date,
+						description,
+						normalized_description,
+						amount,
+						COALESCE(currency, 'SEK'),
+						import_fingerprint,
+						category_id,
+						match_method,
+						categorization_status,
+						categorization_source,
+						suggested_category_id,
+						suggested_confidence,
+						suggested_reason,
+						suggested_by_model,
+						suggested_at,
+						import_batch_id,
+						created_at,
+						updated_at
+					FROM transactions_legacy_0016;
+
+					DROP TABLE transactions_legacy_0016;
+				`);
+			}
+
+			db.exec(`
+				CREATE INDEX IF NOT EXISTS idx_transactions_import_batch_id
+				ON transactions (import_batch_id);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_normalized_description
+				ON transactions (normalized_description);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_category_id
+				ON transactions (category_id);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_match_method
+				ON transactions (match_method);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_categorization_status
+				ON transactions (categorization_status);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_categorization_source
+				ON transactions (categorization_source);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_suggested_category_id
+				ON transactions (suggested_category_id);
+
+				CREATE INDEX IF NOT EXISTS idx_transactions_booking_date
+				ON transactions (booking_date);
+
+				CREATE UNIQUE INDEX IF NOT EXISTS transactions_import_fingerprint_unique
+				ON transactions (import_fingerprint);
 			`);
 		},
 	},

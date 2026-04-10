@@ -2,10 +2,15 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 
+
 	let { children } = $props();
 
 	let pathname = $derived($page.url.pathname);
 	let sidebarOpen = $state(false);
+
+	const navRoutes = ['/budget', '/investments', '/loans', '/wishlist', '/imports'];
+	let activeIndex = $derived(navRoutes.findIndex((href) => pathname.startsWith(href)));
+	let hasActiveNav = $derived(activeIndex >= 0);
 
 	function isActive(href: string): boolean {
 		if (href === '/') return pathname === '/';
@@ -59,7 +64,14 @@
 
 		<span class="nav-section-label">Navigation</span>
 
-		<ul class="nav-items">
+		<ul
+			class="nav-items"
+			style:--nav-count={navRoutes.length}
+			style:--nav-active-index={activeIndex}
+		>
+			{#if hasActiveNav}
+				<li class="nav-slider" aria-hidden="true"></li>
+			{/if}
 			<li>
 				<a href="/budget" class="nav-link" class:active={isActive('/budget')} onclick={closeSidebar}>
 					<svg aria-hidden="true" focusable="false" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -67,9 +79,6 @@
 						<path d="M8 21h8M12 17v4" />
 					</svg>
 					<span>Budget</span>
-					{#if isActive('/budget')}
-						<span class="active-dot"></span>
-					{/if}
 				</a>
 			</li>
 			<li>
@@ -80,7 +89,7 @@
 					</svg>
 					<span>Investments</span>
 					{#if isActive('/investments')}
-						<span class="active-dot"></span>
+						<span class="active-dot" in:fade={{ duration: 100, delay: 40 }} out:fade={{ duration: 60 }}></span>
 					{/if}
 				</a>
 			</li>
@@ -94,7 +103,7 @@
 					</svg>
 					<span>Loans</span>
 					{#if isActive('/loans')}
-						<span class="active-dot"></span>
+						<span class="active-dot" in:fade={{ duration: 100, delay: 40 }} out:fade={{ duration: 60 }}></span>
 					{/if}
 				</a>
 			</li>
@@ -105,7 +114,7 @@
 					</svg>
 					<span>Wishlist</span>
 					{#if isActive('/wishlist')}
-						<span class="active-dot"></span>
+						<span class="active-dot" in:fade={{ duration: 100, delay: 40 }} out:fade={{ duration: 60 }}></span>
 					{/if}
 				</a>
 			</li>
@@ -118,7 +127,7 @@
 					</svg>
 					<span>Imports</span>
 					{#if isActive('/imports')}
-						<span class="active-dot"></span>
+						<span class="active-dot" in:fade={{ duration: 100, delay: 40 }} out:fade={{ duration: 60 }}></span>
 					{/if}
 				</a>
 			</li>
@@ -197,6 +206,25 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+		position: relative;
+	}
+
+	.nav-slider {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		height: calc((100% - (var(--nav-count) - 1) * 2px) / var(--nav-count));
+		transform: translateY(calc(var(--nav-active-index) * (100% + 2px)));
+		border-radius: var(--app-radius-sm);
+		background: color-mix(in oklab, var(--ds-accent) 14%, var(--ds-glass-bg));
+		border: 1px solid rgba(34, 197, 94, 0.30);
+		box-shadow: inset 0 0.5px 0 var(--ds-glass-edge);
+		transition:
+			transform 165ms cubic-bezier(0.26, 0.9, 0.32, 1),
+			opacity 165ms cubic-bezier(0.26, 0.9, 0.32, 1);
+		z-index: 0;
+		pointer-events: none;
 	}
 
 	.nav-link {
@@ -209,8 +237,14 @@
 		text-decoration: none;
 		font-size: 0.875rem;
 		font-weight: 600;
-		transition: background 0.16s var(--ds-ease), color 0.16s var(--ds-ease), border-color 0.16s var(--ds-ease);
+		transition:
+			background 0.16s var(--ds-ease),
+			color 165ms cubic-bezier(0.26, 0.9, 0.32, 1),
+			border-color 0.16s var(--ds-ease),
+			transform 120ms cubic-bezier(0.26, 0.9, 0.32, 1);
 		border: 1px solid transparent;
+		position: relative;
+		z-index: 1;
 	}
 
 	.nav-link span:first-of-type {
@@ -230,21 +264,13 @@
 	}
 
 	.nav-link.active {
-		background: color-mix(in oklab, var(--ds-accent) 14%, var(--ds-glass-bg));
+		background: transparent;
 		color: var(--app-accent-light);
-		border-color: rgba(34, 197, 94, 0.30);
-		box-shadow: inset 0 0.5px 0 var(--ds-glass-edge);
+		border-color: transparent;
+		box-shadow: none;
 	}
 
-	.active-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--app-accent-light);
-		flex-shrink: 0;
-	}
-
-	.content {
+.content {
 		overflow-y: auto;
 		min-width: 0;
 		height: 100dvh;

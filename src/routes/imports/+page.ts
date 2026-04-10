@@ -14,7 +14,7 @@ export const load: PageLoad = async ({ fetch, url }) => {
 					.listImportBatches({ urlParams: { limit: 30 } })
 					.pipe(Effect.catchAll(() => Effect.succeed([]))),
 				reviewTransactions: client.imports
-					.listReviewTransactions({ urlParams: { limit: 300 } })
+					.listImportTransactions({ urlParams: { limit: 300 } })
 					.pipe(Effect.catchAll(() => Effect.succeed([]))),
 			}),
 		),
