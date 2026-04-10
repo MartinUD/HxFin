@@ -26,7 +26,10 @@ import {
 import {
 	assignTransactionCategoryEffect,
 	listImportBatchesEffect,
+	listImportTransactionsEffect,
 	listReviewTransactionsEffect,
+	reprocessImportTransactionsEffect,
+	suggestTransactionCategoryWithAiEffect,
 	uploadImportCsvEffect,
 } from '$lib/server/imports/service';
 import {
@@ -119,10 +122,19 @@ const wishlistHandlers = HttpApiBuilder.group(FinApi, 'wishlist', (handlers) =>
 const importsHandlers = HttpApiBuilder.group(FinApi, 'imports', (handlers) =>
 	handlers
 		.handle('listImportBatches', ({ urlParams }) => listImportBatchesEffect(urlParams ?? {}))
+		.handle('listImportTransactions', ({ urlParams }) =>
+			listImportTransactionsEffect(urlParams ?? {}),
+		)
 		.handle('listReviewTransactions', ({ urlParams }) =>
 			listReviewTransactionsEffect(urlParams ?? {}),
 		)
 		.handle('uploadImportCsv', ({ payload }) => uploadImportCsvEffect(payload))
+		.handle('reprocessImportTransactions', ({ payload }) =>
+			reprocessImportTransactionsEffect(payload),
+		)
+		.handle('suggestImportTransactionCategoryWithAi', ({ path, payload }) =>
+			suggestTransactionCategoryWithAiEffect(path.transactionId, payload),
+		)
 		.handle('assignImportTransactionCategory', ({ path, payload }) =>
 			assignTransactionCategoryEffect(path.transactionId, payload),
 		),

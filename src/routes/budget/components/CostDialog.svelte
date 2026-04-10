@@ -19,7 +19,7 @@
 
 	interface Props {
 		categories: BudgetCategory[];
-		selectedCategoryFilter: string;
+		selectedCategoryFilter: string[];
 		onSaved: () => void | Promise<void>;
 		onError: (message: string) => void;
 	}
@@ -115,10 +115,10 @@
 	}
 
 	export function openAdd(): void {
+		const defaultCategoryId =
+			selectedCategoryFilter.find((categoryId) => categoryId !== 'all') ?? (categories[0]?.id ?? '');
 		mode = 'add';
-		form = createEmptyForm(
-			selectedCategoryFilter !== 'all' ? selectedCategoryFilter : (categories[0]?.id ?? ''),
-		);
+		form = createEmptyForm(defaultCategoryId);
 		dialogOpen = true;
 	}
 

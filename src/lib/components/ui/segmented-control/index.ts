@@ -1,6 +1,7 @@
 export {
 	default as SegmentedControl,
 	type SegmentedControlOption,
+	type SegmentedControlSelectionMode,
 	type SegmentedControlSize,
 	type SegmentedControlVariant,
 	segmentedControlVariants,

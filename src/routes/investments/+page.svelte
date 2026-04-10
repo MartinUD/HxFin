@@ -7,7 +7,6 @@
 	import { calculate } from '$lib/calculator';
 	import ResultsPanel from '$lib/components/fire/ResultsPanel.svelte';
 	import SettingsPanel from '$lib/components/fire/SettingsPanel.svelte';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -19,7 +18,18 @@
 	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
 	import { Tag } from '$lib/components/ui/tag';
-	import * as Table from '$lib/components/ui/table';
+	import {
+		ToolbarActionButton,
+		ToolbarActions
+	} from '$lib/components/ui/toolbar-actions';
+	import {
+		Table,
+		SortableTableHead,
+		type SortDirection,
+		sortAlphabetical,
+		sortValue,
+		toggleSort as toggleTableSort
+	} from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
@@ -39,7 +49,7 @@
 
 	let view = $state<'portfolio' | 'projections'>('portfolio');
 	let platformFilter = $state<'all' | 'nordea' | 'avanza' | 'manual'>('all');
-	let holdingSort = $state<{ key: HoldingSortKey; direction: 'asc' | 'desc' }>({
+	let holdingSort = $state<{ key: HoldingSortKey; direction: SortDirection }>({
 		key: 'value',
 		direction: 'desc'
 	});
@@ -73,6 +83,7 @@
 
 	const PROJECTION_PRESET_KEY = 'fin:investments:projection-preset';
 	type HoldingSortKey = 'name' | 'platform' | 'value' | 'weight' | 'target' | 'change';
+	type AllocationRow = InvestmentHolding & { actualPercent: number };
 
 	let defaultAccountId = $derived(accounts[0]?.id ?? '');
 	let portfolioHoldings = $derived(
@@ -386,55 +397,64 @@
 	}
 
 	function toggleHoldingSort(key: HoldingSortKey): void {
-		if (holdingSort.key === key) {
-			holdingSort = {
-				key,
-				direction: holdingSort.direction === 'asc' ? 'desc' : 'asc'
-			};
-			return;
-		}
-
-		holdingSort = {
-			key,
-			direction: key === 'name' || key === 'platform' ? 'asc' : 'desc'
-		};
+		holdingSort = toggleTableSort(holdingSort, key);
 	}
 
-	function sortAllocationRows(
-		left: InvestmentHolding & { actualPercent: number },
-		right: InvestmentHolding & { actualPercent: number }
-	): number {
-		const factor = holdingSort.direction === 'asc' ? 1 : -1;
-		let comparison = 0;
-
+	function sortAllocationRows(left: AllocationRow, right: AllocationRow): number {
 		switch (holdingSort.key) {
 			case 'name':
-				comparison = left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
-				break;
+				return withSortOrderTiebreak(
+					sortAlphabetical(left.name, right.name, holdingSort.direction),
+					left,
+					right
+				);
 			case 'platform':
-				comparison = formatPlatformLabel(left.trackerSource).localeCompare(formatPlatformLabel(right.trackerSource), undefined, {
-					sensitivity: 'base'
-				});
-				break;
+				return withSortOrderTiebreak(
+					sortAlphabetical(
+						formatPlatformLabel(left.trackerSource),
+						formatPlatformLabel(right.trackerSource),
+						holdingSort.direction
+					),
+					left,
+					right
+				);
 			case 'value':
-				comparison = left.currentValue - right.currentValue;
-				break;
+				return withSortOrderTiebreak(
+					sortValue(left.currentValue, right.currentValue, holdingSort.direction),
+					left,
+					right
+				);
 			case 'weight':
-				comparison = left.actualPercent - right.actualPercent;
-				break;
+				return withSortOrderTiebreak(
+					sortValue(left.actualPercent, right.actualPercent, holdingSort.direction),
+					left,
+					right
+				);
 			case 'target':
-				comparison = left.allocationPercent - right.allocationPercent;
-				break;
+				return withSortOrderTiebreak(
+					sortValue(left.allocationPercent, right.allocationPercent, holdingSort.direction),
+					left,
+					right
+				);
 			case 'change':
-				comparison = (left.changeAmountSinceLastSnapshot ?? Number.NEGATIVE_INFINITY) - (right.changeAmountSinceLastSnapshot ?? Number.NEGATIVE_INFINITY);
-				break;
+				return withSortOrderTiebreak(
+					sortValue(
+						left.changeAmountSinceLastSnapshot ?? Number.NEGATIVE_INFINITY,
+						right.changeAmountSinceLastSnapshot ?? Number.NEGATIVE_INFINITY,
+						holdingSort.direction
+					),
+					left,
+					right
+				);
 		}
+	}
 
-		if (comparison === 0) {
-			comparison = left.sortOrder - right.sortOrder;
-		}
-
-		return comparison * factor;
+	function withSortOrderTiebreak(
+		comparison: number,
+		left: AllocationRow,
+		right: AllocationRow
+	): number {
+		return comparison !== 0 ? comparison : left.sortOrder - right.sortOrder;
 	}
 </script>
 
@@ -465,31 +485,33 @@
 
 		{#if view === 'portfolio'}
 			<div class="app-toolbar-right">
-				{#if trackedHoldingsCount > 0}
-					<div class="sync-chip">
-						<span class="sync-label">Tracked holdings</span>
-						<span class="sync-stamp">{formatSyncStamp(latestTrackedSync)}</span>
-					</div>
-					<Button
-						size="sm"
-						variant="outline"
-						class="app-action-btn"
-						onclick={handleRefreshTrackedPrices}
-						disabled={portfolioPending}
-					>
-						Refresh prices
-					</Button>
-				{/if}
+				{#if trackedHoldingsCount > 0 || defaultAccountId}
+					<ToolbarActions>
+						{#if trackedHoldingsCount > 0}
+						<div class="sync-chip">
+							<span class="sync-label">Tracked holdings</span>
+							<span class="sync-stamp">{formatSyncStamp(latestTrackedSync)}</span>
+						</div>
+						<ToolbarActionButton
+							tone="muted"
+							onclick={handleRefreshTrackedPrices}
+							disabled={portfolioPending}
+						>
+							Refresh prices
+						</ToolbarActionButton>
+						{/if}
 
-				{#if defaultAccountId}
-					<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddHoldingDialog}>+ Holding</Button>
+						{#if defaultAccountId}
+							<ToolbarActionButton onclick={openAddHoldingDialog}>+ Holding</ToolbarActionButton>
+						{/if}
+					</ToolbarActions>
 				{/if}
 			</div>
 		{:else}
 			<div class="app-toolbar-right">
-				<Button size="sm" variant="outline" class="app-action-btn" onclick={saveProjectionPreset}>
-					Save
-				</Button>
+				<ToolbarActions>
+					<ToolbarActionButton onclick={saveProjectionPreset}>Save</ToolbarActionButton>
+				</ToolbarActions>
 			</div>
 		{/if}
 	</div>
@@ -512,95 +534,90 @@
 
 			{#if defaultAccountId}
 				<div class="portfolio-grid">
-					<div class="app-table-shell rounded-lg border border-border overflow-hidden">
-						<div class="app-table-scroll">
-							<Table.Root class="portfolio-table">
-								<Table.Header>
-									<Table.Row class="portfolio-header-row border-border hover:bg-transparent">
-										<SortableTableHead class="portfolio-head col-head w-[24%]" label="Name" active={holdingSort.key === 'name'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('name')} />
-										<SortableTableHead class="portfolio-head col-head w-[15%]" label="Platform" active={holdingSort.key === 'platform'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('platform')} />
-										<SortableTableHead class="portfolio-head col-head w-[15%]" label="Value" align="right" active={holdingSort.key === 'value'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('value')} />
-										<SortableTableHead class="portfolio-head col-head w-[12%]" label="Weight" align="right" active={holdingSort.key === 'weight'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('weight')} />
-										<SortableTableHead class="portfolio-head col-head w-[14%]" label="Target" align="right" active={holdingSort.key === 'target'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('target')} />
-										<SortableTableHead class="portfolio-head col-head w-[15%]" label="Since update" align="right" active={holdingSort.key === 'change'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('change')} />
-										<Table.Head class="portfolio-head w-[90px]"></Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each allocationRows as holding (holding.id)}
-										<Table.Row class="border-border group">
-											<Table.Cell class="portfolio-cell holding-name-cell text-foreground font-medium">{holding.name}</Table.Cell>
-											<Table.Cell class="portfolio-cell">
-												<Tag
-													variant={
-														holding.trackerSource === 'avanza'
-															? 'success'
-															: holding.trackerSource === 'manual'
-																? 'neutral'
-																: 'subtle'
-													}
-													class="platform-pill"
-												>
-													{formatPlatformLabel(holding.trackerSource)}
-												</Tag>
-											</Table.Cell>
-											<Table.Cell class="portfolio-cell text-right font-mono tabular-nums text-foreground">{formatCurrency(holding.currentValue)}</Table.Cell>
-											<Table.Cell class="portfolio-cell text-right font-mono tabular-nums text-muted-foreground">{formatPercent(holding.actualPercent)}</Table.Cell>
-											<Table.Cell class="portfolio-cell text-right font-mono tabular-nums text-muted-foreground">{formatPercent(holding.allocationPercent)}</Table.Cell>
-											<Table.Cell class="portfolio-cell text-right font-mono tabular-nums">
-												{#if holding.changeAmountSinceLastSnapshot !== null}
-													<div
-														class:text-emerald-400={holding.changeAmountSinceLastSnapshot >= 0}
-														class:text-red-400={holding.changeAmountSinceLastSnapshot < 0}
-													>
-														{prefixSigned(holding.changeAmountSinceLastSnapshot)}{formatCurrency(holding.changeAmountSinceLastSnapshot)}
-													</div>
-													<div class="text-muted-foreground">
-														{prefixSigned(holding.changePercentSinceLastSnapshot ?? 0)}{formatPercent(holding.changePercentSinceLastSnapshot ?? 0)}
-													</div>
-												{:else}
-													<span class="text-muted-foreground">-</span>
-												{/if}
-											</Table.Cell>
-											<Table.Cell class="portfolio-cell">
-												<div class="holding-actions">
-													<button
-														type="button"
-														class="holding-action"
-														onclick={() => openEditHoldingDialog(holding)}
-														aria-label="Edit holding"
-														title="Edit holding"
-													>
-														<PencilIcon class="holding-action-icon" size={12} strokeWidth={1.75} />
-													</button>
-													<button
-														type="button"
-														class="holding-action danger"
-														onclick={() => handleDeleteHolding(holding.id)}
-														aria-label="Delete holding"
-														title="Delete holding"
-													>
-														<Trash2Icon class="holding-action-icon" size={12} strokeWidth={1.75} />
-													</button>
-												</div>
-											</Table.Cell>
-										</Table.Row>
-									{:else}
-										<Table.Row>
-											<Table.Cell colspan={7} class="portfolio-cell text-center py-12 text-muted-foreground text-base">
-												No holdings yet.
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								</Table.Body>
-							</Table.Root>
-						</div>
-						<div class="app-table-summary">
-							<span class="app-table-summary-label">Total</span>
-							<span class="app-table-summary-value">{formatCurrency(selectedHoldingsTotal)}</span>
-						</div>
-					</div>
-
+					<Table fill class="portfolio-table table-fixed">
+						{#snippet footer()}
+							<span class="table-summary-label">Total</span>
+							<span class="table-summary-value">{formatCurrency(selectedHoldingsTotal)}</span>
+						{/snippet}
+						<thead>
+							<tr>
+								<SortableTableHead class="w-[24%]" label="Name" active={holdingSort.key === 'name'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('name')} />
+								<SortableTableHead class="w-[15%]" label="Platform" active={holdingSort.key === 'platform'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('platform')} />
+								<SortableTableHead class="w-[15%]" label="Value" align="right" active={holdingSort.key === 'value'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('value')} />
+								<SortableTableHead class="w-[12%]" label="Weight" align="right" active={holdingSort.key === 'weight'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('weight')} />
+								<SortableTableHead class="w-[14%]" label="Target" align="right" active={holdingSort.key === 'target'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('target')} />
+								<SortableTableHead class="w-[15%]" label="Since update" align="right" active={holdingSort.key === 'change'} direction={holdingSort.direction} onToggle={() => toggleHoldingSort('change')} />
+								<th class="w-[90px]"></th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each allocationRows as holding (holding.id)}
+								<tr class="group">
+									<td class="portfolio-cell holding-name-cell text-foreground font-medium">{holding.name}</td>
+									<td class="portfolio-cell">
+										<Tag
+											variant={
+												holding.trackerSource === 'avanza'
+													? 'success'
+													: holding.trackerSource === 'manual'
+														? 'neutral'
+														: 'subtle'
+											}
+											class="platform-pill"
+										>
+											{formatPlatformLabel(holding.trackerSource)}
+										</Tag>
+									</td>
+									<td class="portfolio-cell text-right font-mono tabular-nums text-foreground">{formatCurrency(holding.currentValue)}</td>
+									<td class="portfolio-cell text-right font-mono tabular-nums text-muted-foreground">{formatPercent(holding.actualPercent)}</td>
+									<td class="portfolio-cell text-right font-mono tabular-nums text-muted-foreground">{formatPercent(holding.allocationPercent)}</td>
+									<td class="portfolio-cell text-right font-mono tabular-nums">
+										{#if holding.changeAmountSinceLastSnapshot !== null}
+											<div
+												class:text-emerald-400={holding.changeAmountSinceLastSnapshot >= 0}
+												class:text-red-400={holding.changeAmountSinceLastSnapshot < 0}
+											>
+												{prefixSigned(holding.changeAmountSinceLastSnapshot)}{formatCurrency(holding.changeAmountSinceLastSnapshot)}
+											</div>
+											<div class="text-muted-foreground">
+												{prefixSigned(holding.changePercentSinceLastSnapshot ?? 0)}{formatPercent(holding.changePercentSinceLastSnapshot ?? 0)}
+											</div>
+										{:else}
+											<span class="text-muted-foreground">-</span>
+										{/if}
+									</td>
+									<td class="portfolio-cell">
+										<div class="holding-actions">
+											<button
+												type="button"
+												class="holding-action"
+												onclick={() => openEditHoldingDialog(holding)}
+												aria-label="Edit holding"
+												title="Edit holding"
+											>
+												<PencilIcon class="holding-action-icon" size={12} strokeWidth={1.75} />
+											</button>
+											<button
+												type="button"
+												class="holding-action danger"
+												onclick={() => handleDeleteHolding(holding.id)}
+												aria-label="Delete holding"
+												title="Delete holding"
+											>
+												<Trash2Icon class="holding-action-icon" size={12} strokeWidth={1.75} />
+											</button>
+										</div>
+									</td>
+								</tr>
+							{:else}
+								<tr>
+									<td colspan={7} class="table-empty-state">
+										No holdings yet.
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</Table>
 				</div>
 			{/if}
 		</div>
@@ -795,52 +812,9 @@
 		flex: 1 1 auto;
 	}
 
-	:global(.col-head) {
-		font-size: 0.82rem;
-		font-weight: 600;
-		letter-spacing: 0;
-		text-transform: none;
-		color: var(--app-text-secondary);
-	}
-
-	:global(.portfolio-table table) {
+	:global(.portfolio-table[data-slot='table']) {
 		width: 100%;
 		table-layout: fixed;
-	}
-
-	:global(.portfolio-table [data-slot="table-container"]) {
-		overflow: visible;
-	}
-
-	:global(.portfolio-table [data-slot="table-header"]) {
-		position: sticky;
-		top: 0;
-		z-index: 4;
-	}
-
-	:global(.portfolio-header-row) {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.14));
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		box-shadow:
-			inset 0 -1px 0 var(--ds-glass-border),
-			inset 0 1px 0 rgba(255, 255, 255, 0.04);
-	}
-
-	:global(.portfolio-head) {
-		height: 3.7rem;
-		padding: 1.15rem 1.25rem;
-		font-size: 0.86rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	:global(.portfolio-table [data-slot="table-cell"]) {
-		padding: 1.15rem 1.25rem;
-		font-size: 1.06rem;
 	}
 
 	:global(.portfolio-cell) {
@@ -928,3 +902,4 @@
 	@media (max-width: 640px) {
 	}
 </style>
+

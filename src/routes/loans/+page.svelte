@@ -3,7 +3,6 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import type * as Effect from 'effect/Effect';
 	import { type ApiClient, withApiClient } from '$lib/api/client';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -14,7 +13,18 @@
 		type SegmentedControlOption
 	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
+	import {
+		ToolbarActionButton,
+		ToolbarActions
+	} from '$lib/components/ui/toolbar-actions';
+	import {
+		Table,
+		SortableTableHead,
+		type SortDirection,
+		sortAlphabetical,
+		sortValue,
+		toggleSort as toggleTableSort
+	} from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatLocalizedNumber } from '$lib/finance/format';
@@ -60,7 +70,7 @@
 	let editingLoanId = $state('');
 	let statusFilter = $state<'all' | LoanStatus>('all');
 	let directionFilter = $state<'all' | LoanDirection>('all');
-	let loanSort = $state<{ key: LoanSortKey; direction: 'asc' | 'desc' }>({
+	let loanSort = $state<{ key: LoanSortKey; direction: SortDirection }>({
 		key: 'timeline',
 		direction: 'asc'
 	});
@@ -109,50 +119,48 @@
 	});
 
 	function toggleLoanSort(key: LoanSortKey): void {
-		if (loanSort.key === key) {
-			loanSort = {
-				key,
-				direction: loanSort.direction === 'asc' ? 'desc' : 'asc'
-			};
-			return;
-		}
-
-		loanSort = {
-			key,
-			direction: key === 'timeline' ? 'asc' : 'desc'
-		};
+		loanSort = toggleTableSort(loanSort, key);
 	}
 
 	function sortLoans(left: Loan, right: Loan): number {
-		const factor = loanSort.direction === 'asc' ? 1 : -1;
-		let comparison = 0;
-
 		switch (loanSort.key) {
 			case 'direction':
-				comparison = left.direction.localeCompare(right.direction);
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(left.direction, right.direction, loanSort.direction),
+					left,
+					right
+				);
 			case 'counterparty':
-				comparison = left.counterparty.localeCompare(right.counterparty, undefined, { sensitivity: 'base' });
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(left.counterparty, right.counterparty, loanSort.direction),
+					left,
+					right
+				);
 			case 'timeline':
-				comparison = sortLoansByTimeline(left, right);
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(sortLoansByTimeline(left, right), 0, loanSort.direction),
+					left,
+					right
+				);
 			case 'principal':
-				comparison = left.principalAmount - right.principalAmount;
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(left.principalAmount, right.principalAmount, loanSort.direction),
+					left,
+					right
+				);
 			case 'outstanding':
-				comparison = left.outstandingAmount - right.outstandingAmount;
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(left.outstandingAmount, right.outstandingAmount, loanSort.direction),
+					left,
+					right
+				);
 			case 'status':
-				comparison = compareLoanStatus(left.status, right.status);
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(compareLoanStatus(left.status, right.status), 0, loanSort.direction),
+					left,
+					right
+				);
 		}
-
-		if (comparison === 0) {
-			comparison = right.createdAt.localeCompare(left.createdAt);
-		}
-
-		return comparison * factor;
 	}
 
 	function sortLoansByTimeline(left: Loan, right: Loan): number {
@@ -175,6 +183,10 @@
 		};
 
 		return rank[left] - rank[right];
+	}
+
+	function withCreatedAtTiebreak(comparison: number, left: Loan, right: Loan): number {
+		return comparison !== 0 ? comparison : right.createdAt.localeCompare(left.createdAt);
 	}
 
 	function formatAmount(amount: number, currency: string): string {
@@ -322,9 +334,9 @@
 		</div>
 
 		<div class="app-toolbar-right">
-			<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddDialog}>
-				+ Loan
-			</Button>
+			<ToolbarActions>
+				<ToolbarActionButton onclick={openAddDialog}>+ Loan</ToolbarActionButton>
+			</ToolbarActions>
 		</div>
 	</div>
 
@@ -337,106 +349,101 @@
 		</Alert.Root>
 	{/if}
 
-	<div class="app-table-shell rounded-lg border border-border overflow-hidden">
-		<div class="app-table-scroll">
-			<Table.Root class="loans-table">
-				<Table.Header>
-					<Table.Row class="loans-header-row border-border hover:bg-transparent">
-						<SortableTableHead class="loans-head w-[13%]" label="Direction" active={loanSort.key === 'direction'} direction={loanSort.direction} onToggle={() => toggleLoanSort('direction')} />
-						<SortableTableHead class="loans-head w-[29%]" label="Counterparty" active={loanSort.key === 'counterparty'} direction={loanSort.direction} onToggle={() => toggleLoanSort('counterparty')} />
-						<SortableTableHead class="loans-head w-[20%]" label="Timeline" active={loanSort.key === 'timeline'} direction={loanSort.direction} onToggle={() => toggleLoanSort('timeline')} />
-						<SortableTableHead class="loans-head w-[13%]" label="Principal" align="right" active={loanSort.key === 'principal'} direction={loanSort.direction} onToggle={() => toggleLoanSort('principal')} />
-						<SortableTableHead class="loans-head w-[13%]" label="Outstanding" align="right" active={loanSort.key === 'outstanding'} direction={loanSort.direction} onToggle={() => toggleLoanSort('outstanding')} />
-						<SortableTableHead class="loans-head w-[12%]" label="Status" active={loanSort.key === 'status'} direction={loanSort.direction} onToggle={() => toggleLoanSort('status')} />
-						<Table.Head class="loans-head actions-head"></Table.Head>
-					</Table.Row>
-				</Table.Header>
-
-				<Table.Body>
-					{#each filteredLoans as loan (loan.id)}
-						<Table.Row class="border-border group">
-							<Table.Cell class="loan-cell">
-								<span class="direction-pill" class:direction-pill-lent={loan.direction === 'lent'}>
-									{DIRECTION_LABELS[loan.direction]}
-								</span>
-							</Table.Cell>
-
-							<Table.Cell class="loan-cell counterparty-cell">
-								<div class="counterparty-name">{loan.counterparty}</div>
-								<div class="counterparty-meta">
-									<span>{loan.currency}</span>
-									{#if loan.notes}
-										<span class="meta-separator" aria-hidden="true"></span>
-										<span class="counterparty-note">{loan.notes}</span>
-									{/if}
-								</div>
-							</Table.Cell>
-
-							<Table.Cell class="loan-cell timeline-cell">
-								<div class="timeline-primary">{formatDate(loan.dueDate)}</div>
-								<div class="timeline-secondary">Issued {formatDate(loan.issueDate)}</div>
-							</Table.Cell>
-
-							<Table.Cell class="loan-cell amount-cell text-right">
-								<div class="amount-primary">{formatAmount(loan.principalAmount, loan.currency)}</div>
-							</Table.Cell>
-
-							<Table.Cell class="loan-cell amount-cell text-right">
-								<div class="amount-primary outstanding-amount">{formatAmount(loan.outstandingAmount, loan.currency)}</div>
-							</Table.Cell>
-
-							<Table.Cell class="loan-cell">
-								<span
-									class="status-pill"
-									class:status-pill-paid={loan.status === 'paid'}
-									class:status-pill-overdue={loan.status === 'overdue'}
-								>
-									{STATUS_LABELS[loan.status]}
-								</span>
-							</Table.Cell>
-
-							<Table.Cell class="loan-cell actions-cell">
-								<div class="row-actions">
-									<button
-										type="button"
-										class="row-action"
-										onclick={() => openEditDialog(loan)}
-										aria-label="Edit loan"
-										title="Edit loan"
-									>
-										<PencilIcon size={12} strokeWidth={1.8} />
-									</button>
-									<button
-										type="button"
-										class="row-action danger"
-										onclick={() => handleDelete(loan.id)}
-										aria-label="Delete loan"
-										title="Delete loan"
-									>
-										<Trash2Icon size={12} strokeWidth={1.8} />
-									</button>
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{:else}
-						<Table.Row>
-							<Table.Cell colspan={7} class="empty-state">
-								No loans match the current filters.
-							</Table.Cell>
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</div>
-
-		<div class="app-table-summary">
-			<div class="table-total-copy">
-				<span class="app-table-summary-label">Filtered outstanding</span>
+	<Table fill class="loans-table">
+		{#snippet footer()}
+			<div class="table-summary-copy">
+				<span class="table-summary-label">Filtered outstanding</span>
 				<span class="table-total-count">{filteredLoans.length} records</span>
 			</div>
-			<span class="app-table-summary-value">{formatAmount(filteredOutstandingTotal, 'SEK')}</span>
-		</div>
-	</div>
+			<span class="table-summary-value">{formatAmount(filteredOutstandingTotal, 'SEK')}</span>
+		{/snippet}
+		<thead>
+			<tr>
+				<SortableTableHead class="w-[13%]" label="Direction" active={loanSort.key === 'direction'} direction={loanSort.direction} onToggle={() => toggleLoanSort('direction')} />
+				<SortableTableHead class="w-[29%]" label="Counterparty" active={loanSort.key === 'counterparty'} direction={loanSort.direction} onToggle={() => toggleLoanSort('counterparty')} />
+				<SortableTableHead class="w-[20%]" label="Timeline" active={loanSort.key === 'timeline'} direction={loanSort.direction} onToggle={() => toggleLoanSort('timeline')} />
+				<SortableTableHead class="w-[13%]" label="Principal" align="right" active={loanSort.key === 'principal'} direction={loanSort.direction} onToggle={() => toggleLoanSort('principal')} />
+				<SortableTableHead class="w-[13%]" label="Outstanding" align="right" active={loanSort.key === 'outstanding'} direction={loanSort.direction} onToggle={() => toggleLoanSort('outstanding')} />
+				<SortableTableHead class="w-[12%]" label="Status" active={loanSort.key === 'status'} direction={loanSort.direction} onToggle={() => toggleLoanSort('status')} />
+				<th class="actions-head"></th>
+			</tr>
+		</thead>
+
+		<tbody>
+			{#each filteredLoans as loan (loan.id)}
+				<tr class="group">
+					<td class="loan-cell">
+						<span class="direction-pill" class:direction-pill-lent={loan.direction === 'lent'}>
+							{DIRECTION_LABELS[loan.direction]}
+						</span>
+					</td>
+
+					<td class="loan-cell counterparty-cell">
+						<div class="counterparty-name">{loan.counterparty}</div>
+						<div class="counterparty-meta">
+							<span>{loan.currency}</span>
+							{#if loan.notes}
+								<span class="meta-separator" aria-hidden="true"></span>
+								<span class="counterparty-note">{loan.notes}</span>
+							{/if}
+						</div>
+					</td>
+
+					<td class="loan-cell timeline-cell">
+						<div class="timeline-primary">{formatDate(loan.dueDate)}</div>
+						<div class="timeline-secondary">Issued {formatDate(loan.issueDate)}</div>
+					</td>
+
+					<td class="loan-cell amount-cell text-right">
+						<div class="amount-primary">{formatAmount(loan.principalAmount, loan.currency)}</div>
+					</td>
+
+					<td class="loan-cell amount-cell text-right">
+						<div class="amount-primary outstanding-amount">{formatAmount(loan.outstandingAmount, loan.currency)}</div>
+					</td>
+
+					<td class="loan-cell">
+						<span
+							class="status-pill"
+							class:status-pill-paid={loan.status === 'paid'}
+							class:status-pill-overdue={loan.status === 'overdue'}
+						>
+							{STATUS_LABELS[loan.status]}
+						</span>
+					</td>
+
+					<td class="loan-cell actions-cell">
+						<div class="row-actions">
+							<button
+								type="button"
+								class="row-action"
+								onclick={() => openEditDialog(loan)}
+								aria-label="Edit loan"
+								title="Edit loan"
+							>
+								<PencilIcon size={12} strokeWidth={1.8} />
+							</button>
+							<button
+								type="button"
+								class="row-action danger"
+								onclick={() => handleDelete(loan.id)}
+								aria-label="Delete loan"
+								title="Delete loan"
+							>
+								<Trash2Icon size={12} strokeWidth={1.8} />
+							</button>
+						</div>
+					</td>
+				</tr>
+			{:else}
+				<tr>
+					<td colspan={7} class="table-empty-state">
+						No loans match the current filters.
+					</td>
+				</tr>
+			{/each}
+		</tbody>
+	</Table>
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
@@ -535,35 +542,8 @@
 		max-width: 100%;
 	}
 
-	:global(.loans-header-row) {
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.14));
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		box-shadow:
-			inset 0 -1px 0 var(--ds-glass-border),
-			inset 0 1px 0 rgba(255, 255, 255, 0.04);
-	}
-
-	:global(.loans-head) {
-		height: 3.7rem;
-		padding: 1.15rem 1.25rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		letter-spacing: 0;
-		text-transform: none;
-		color: var(--app-text-secondary);
-	}
-
-	:global(.actions-head) {
+	.actions-head {
 		width: 88px;
-	}
-
-	:global(.loan-cell) {
-		padding: 1.15rem 1.25rem;
-		vertical-align: middle;
-		font-size: 1.06rem;
 	}
 
 	:global(.counterparty-cell) {
@@ -697,23 +677,9 @@
 		border-color: color-mix(in oklab, var(--app-red) 60%, var(--app-border));
 	}
 
-	.table-total-copy {
-		display: flex;
-		align-items: baseline;
-		gap: 0.65rem;
-		flex-wrap: wrap;
-	}
-
 	.table-total-count {
 		font-size: 0.8rem;
 		color: var(--app-text-secondary);
-	}
-
-	:global(.empty-state) {
-		padding: 4.5rem 1rem;
-		text-align: center;
-		font-size: 0.92rem;
-		color: var(--app-text-muted);
 	}
 
 	.dialog-grid {
@@ -750,3 +716,4 @@
 		}
 	}
 </style>
+

@@ -2,7 +2,7 @@
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import ChevronUpIcon from '@lucide/svelte/icons/chevron-up';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
-	import * as Table from '$lib/components/ui/table';
+	import { cn } from '$lib/utils';
 
 	interface Props {
 		label: string;
@@ -23,7 +23,8 @@
 	}: Props = $props();
 </script>
 
-<Table.Head class={`${className} ${align === 'right' ? 'text-right' : ''}`.trim()}>
+<!-- Sortable column header lives next to the shared table so pages only provide column intent. -->
+<th scope="col" class={cn(align === 'right' ? 'text-right' : '', className)}>
 	<button
 		type="button"
 		class:active
@@ -35,29 +36,27 @@
 		<span>{label}</span>
 		<span class="sort-icon" aria-hidden="true">
 			{#if !active}
-				<ChevronsUpDownIcon size={14} strokeWidth={1.8} />
+				<ChevronsUpDownIcon size={15} strokeWidth={1.8} />
 			{:else if direction === 'asc'}
-				<ChevronUpIcon size={14} strokeWidth={1.8} />
+				<ChevronUpIcon size={15} strokeWidth={1.8} />
 			{:else}
-				<ChevronDownIcon size={14} strokeWidth={1.8} />
+				<ChevronDownIcon size={15} strokeWidth={1.8} />
 			{/if}
 		</span>
 	</button>
-</Table.Head>
+</th>
 
 <style>
 	.sort-button {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: 0.38rem;
 		width: 100%;
 		padding: 0;
 		border: 0;
 		background: transparent;
 		color: inherit;
 		font: inherit;
-		letter-spacing: inherit;
-		text-transform: inherit;
 		cursor: pointer;
 		transition: color 0.16s var(--ds-ease);
 	}
@@ -67,20 +66,17 @@
 	}
 
 	.sort-button:hover,
-	.sort-button.active {
-		color: var(--app-text-primary);
-	}
-
+	.sort-button.active,
 	.sort-button:focus-visible {
-		outline: none;
 		color: var(--app-text-primary);
+		outline: none;
 	}
 
 	.sort-icon {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		opacity: 0.78;
 		flex: 0 0 auto;
+		opacity: 0.78;
 	}
 </style>

@@ -3,7 +3,6 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import type * as Effect from 'effect/Effect';
 	import { type ApiClient, withApiClient } from '$lib/api/client';
-	import SortableTableHead from '$lib/components/SortableTableHead.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -14,7 +13,18 @@
 		type SegmentedControlOption
 	} from '$lib/components/ui/segmented-control';
 	import * as Select from '$lib/components/ui/select';
-	import * as Table from '$lib/components/ui/table';
+	import {
+		ToolbarActionButton,
+		ToolbarActions
+	} from '$lib/components/ui/toolbar-actions';
+	import {
+		Table,
+		SortableTableHead,
+		type SortDirection,
+		sortAlphabetical,
+		sortValue,
+		toggleSort as toggleTableSort
+	} from '$lib/components/ui/table';
 	import { toUserMessage } from '$lib/effect/errors';
 	import { runUiEffect } from '$lib/effect/runtime/browser';
 	import { formatSekAmount } from '$lib/finance/format';
@@ -62,7 +72,7 @@
 	let editingItemId = $state('');
 	let strategyFilter = $state<'all' | WishlistFundingStrategy>('all');
 	let selectedCategoryFilter = $state('all');
-	let itemSort = $state<{ key: WishlistSortKey; direction: 'asc' | 'desc' }>({
+	let itemSort = $state<{ key: WishlistSortKey; direction: SortDirection }>({
 		key: 'priority',
 		direction: 'desc'
 	});
@@ -119,66 +129,74 @@
 	});
 
 	function sortItems(left: WishlistItem, right: WishlistItem): number {
-		const factor = itemSort.direction === 'asc' ? 1 : -1;
-		let comparison = 0;
-
 		switch (itemSort.key) {
 			case 'item':
-				comparison = left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(left.name, right.name, itemSort.direction),
+					left,
+					right
+				);
 			case 'category':
-				comparison = getCategoryName(left.categoryId).localeCompare(getCategoryName(right.categoryId), undefined, {
-					sensitivity: 'base'
-				});
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(
+						getCategoryName(left.categoryId),
+						getCategoryName(right.categoryId),
+						itemSort.direction
+					),
+					left,
+					right
+				);
 			case 'amount':
-				comparison = left.targetAmount - right.targetAmount;
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(left.targetAmount, right.targetAmount, itemSort.direction),
+					left,
+					right
+				);
 			case 'priority':
-				comparison = left.priority - right.priority;
-				break;
+				return withCreatedAtTiebreak(
+					sortValue(left.priority, right.priority, itemSort.direction),
+					left,
+					right
+				);
 			case 'plan':
-				comparison = STRATEGY_LABELS[left.fundingStrategy].localeCompare(STRATEGY_LABELS[right.fundingStrategy], undefined, {
-					sensitivity: 'base'
-				});
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(
+						STRATEGY_LABELS[left.fundingStrategy],
+						STRATEGY_LABELS[right.fundingStrategy],
+						itemSort.direction
+					),
+					left,
+					right
+				);
 			case 'targetDate':
-				comparison = compareNullableDate(left.targetDate, right.targetDate);
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(left.targetDate ?? '', right.targetDate ?? '', itemSort.direction),
+					left,
+					right
+				);
 			case 'linkedLoan':
-				comparison = getLinkedLoanLabel(left.linkedLoanId).localeCompare(getLinkedLoanLabel(right.linkedLoanId), undefined, {
-					sensitivity: 'base'
-				});
-				break;
+				return withCreatedAtTiebreak(
+					sortAlphabetical(
+						getLinkedLoanLabel(left.linkedLoanId),
+						getLinkedLoanLabel(right.linkedLoanId),
+						itemSort.direction
+					),
+					left,
+					right
+				);
 		}
-
-		if (comparison === 0) {
-			comparison = right.createdAt.localeCompare(left.createdAt);
-		}
-
-		return comparison * factor;
 	}
 
 	function toggleItemSort(key: WishlistSortKey): void {
-		if (itemSort.key === key) {
-			itemSort = {
-				key,
-				direction: itemSort.direction === 'asc' ? 'desc' : 'asc'
-			};
-			return;
-		}
-
-		itemSort = {
-			key,
-			direction: key === 'item' || key === 'category' || key === 'plan' || key === 'linkedLoan' ? 'asc' : 'desc'
-		};
+		itemSort = toggleTableSort(itemSort, key);
 	}
 
-	function compareNullableDate(left: string | null, right: string | null): number {
-		if (left === null && right !== null) return 1;
-		if (left !== null && right === null) return -1;
-		if (left !== null && right !== null && left !== right) return left.localeCompare(right);
-		return 0;
+	function withCreatedAtTiebreak(
+		comparison: number,
+		left: WishlistItem,
+		right: WishlistItem
+	): number {
+		return comparison !== 0 ? comparison : right.createdAt.localeCompare(left.createdAt);
 	}
 
 	function formatTargetAmount(item: Pick<WishlistItem, 'targetAmount' | 'targetAmountType'>): string {
@@ -344,8 +362,10 @@
 			{/if}
 		</div>
 		<div class="app-toolbar-right">
-			<Button size="sm" variant="outline" class="app-action-btn" onclick={() => { addingCategory = false; editingCategoryId = null; categoriesDialogOpen = true; }}>Manage categories</Button>
-			<Button size="sm" variant="outline" class="app-action-btn" onclick={openAddDialog}>+ Item</Button>
+			<ToolbarActions>
+				<ToolbarActionButton tone="muted" onclick={() => { addingCategory = false; editingCategoryId = null; categoriesDialogOpen = true; }}>Manage categories</ToolbarActionButton>
+				<ToolbarActionButton onclick={openAddDialog}>+ Item</ToolbarActionButton>
+			</ToolbarActions>
 		</div>
 	</div>
 
@@ -358,46 +378,45 @@
 		</Alert.Root>
 	{/if}
 
-	<div class="app-table-shell rounded-lg border border-border overflow-hidden">
-		<div class="app-table-scroll">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="header-row border-border hover:bg-transparent">
-						<SortableTableHead class="head w-[25%]" label="Item" active={itemSort.key === 'item'} direction={itemSort.direction} onToggle={() => toggleItemSort('item')} />
-						<SortableTableHead class="head w-[14%]" label="Category" active={itemSort.key === 'category'} direction={itemSort.direction} onToggle={() => toggleItemSort('category')} />
-						<SortableTableHead class="head w-[12%]" label="Amount" active={itemSort.key === 'amount'} direction={itemSort.direction} onToggle={() => toggleItemSort('amount')} />
-						<SortableTableHead class="head w-[11%]" label="Priority" align="right" active={itemSort.key === 'priority'} direction={itemSort.direction} onToggle={() => toggleItemSort('priority')} />
-						<SortableTableHead class="head w-[14%]" label="Plan" active={itemSort.key === 'plan'} direction={itemSort.direction} onToggle={() => toggleItemSort('plan')} />
-						<SortableTableHead class="head w-[10%]" label="Target date" active={itemSort.key === 'targetDate'} direction={itemSort.direction} onToggle={() => toggleItemSort('targetDate')} />
-						<SortableTableHead class="head w-[14%]" label="Linked loan" active={itemSort.key === 'linkedLoan'} direction={itemSort.direction} onToggle={() => toggleItemSort('linkedLoan')} />
-						<Table.Head class="head w-[72px]"></Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each filteredItems as item (item.id)}
-						<Table.Row class="border-border group">
-							<Table.Cell class="cell"><div class="item-name">{item.name}</div>{#if item.notes}<div class="muted-copy">{item.notes}</div>{/if}</Table.Cell>
-							<Table.Cell class="cell"><span class="pill">{getCategoryName(item.categoryId)}</span></Table.Cell>
-							<Table.Cell class="cell"><div class="mono">{formatTargetAmount(item)}</div><div class="muted-copy">{AMOUNT_TYPE_LABELS[item.targetAmountType]}</div></Table.Cell>
-							<Table.Cell class="cell text-right"><div class="mono">{item.priority}</div></Table.Cell>
-							<Table.Cell class="cell"><span class="pill" class:strategy-loan={item.fundingStrategy === 'loan'} class:strategy-mixed={item.fundingStrategy === 'mixed'} class:strategy-buy={item.fundingStrategy === 'buy_outright'}>{STRATEGY_LABELS[item.fundingStrategy]}</span></Table.Cell>
-							<Table.Cell class="cell"><div class="muted-copy no-top-margin">{formatDate(item.targetDate)}</div></Table.Cell>
-							<Table.Cell class="cell"><div class="mono small-mono">{getLinkedLoanLabel(item.linkedLoanId)}</div></Table.Cell>
-							<Table.Cell class="cell">
-								<div class="row-actions">
-									<button type="button" class="row-action" onclick={() => openEditDialog(item)} aria-label="Edit wishlist item"><PencilIcon size={12} strokeWidth={1.8} /></button>
-									<button type="button" class="row-action danger" onclick={() => handleDelete(item.id)} aria-label="Delete wishlist item"><Trash2Icon size={12} strokeWidth={1.8} /></button>
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{:else}
-						<Table.Row><Table.Cell colspan={8} class="empty-state">No wishlist items match the current filters.</Table.Cell></Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-		</div>
-		<div class="app-table-summary"><span class="app-table-summary-label">Filtered target</span><span class="app-table-summary-value">{formatSekAmount(filteredTargetTotal)}</span></div>
-	</div>
+	<Table fill>
+		{#snippet footer()}
+			<span class="table-summary-label">Filtered target</span>
+			<span class="table-summary-value">{formatSekAmount(filteredTargetTotal)}</span>
+		{/snippet}
+		<thead>
+			<tr>
+				<SortableTableHead class="w-[25%]" label="Item" active={itemSort.key === 'item'} direction={itemSort.direction} onToggle={() => toggleItemSort('item')} />
+				<SortableTableHead class="w-[14%]" label="Category" active={itemSort.key === 'category'} direction={itemSort.direction} onToggle={() => toggleItemSort('category')} />
+				<SortableTableHead class="w-[12%]" label="Amount" active={itemSort.key === 'amount'} direction={itemSort.direction} onToggle={() => toggleItemSort('amount')} />
+				<SortableTableHead class="w-[11%]" label="Priority" align="right" active={itemSort.key === 'priority'} direction={itemSort.direction} onToggle={() => toggleItemSort('priority')} />
+				<SortableTableHead class="w-[14%]" label="Plan" active={itemSort.key === 'plan'} direction={itemSort.direction} onToggle={() => toggleItemSort('plan')} />
+				<SortableTableHead class="w-[10%]" label="Target date" active={itemSort.key === 'targetDate'} direction={itemSort.direction} onToggle={() => toggleItemSort('targetDate')} />
+				<SortableTableHead class="w-[14%]" label="Linked loan" active={itemSort.key === 'linkedLoan'} direction={itemSort.direction} onToggle={() => toggleItemSort('linkedLoan')} />
+				<th class="w-[72px]"></th>
+			</tr>
+		</thead>
+		<tbody>
+			{#each filteredItems as item (item.id)}
+				<tr class="group">
+					<td class="cell"><div class="item-name">{item.name}</div>{#if item.notes}<div class="muted-copy">{item.notes}</div>{/if}</td>
+					<td class="cell"><span class="pill">{getCategoryName(item.categoryId)}</span></td>
+					<td class="cell"><div class="mono">{formatTargetAmount(item)}</div><div class="muted-copy">{AMOUNT_TYPE_LABELS[item.targetAmountType]}</div></td>
+					<td class="cell text-right"><div class="mono">{item.priority}</div></td>
+					<td class="cell"><span class="pill" class:strategy-loan={item.fundingStrategy === 'loan'} class:strategy-mixed={item.fundingStrategy === 'mixed'} class:strategy-buy={item.fundingStrategy === 'buy_outright'}>{STRATEGY_LABELS[item.fundingStrategy]}</span></td>
+					<td class="cell"><div class="muted-copy no-top-margin">{formatDate(item.targetDate)}</div></td>
+					<td class="cell"><div class="mono small-mono">{getLinkedLoanLabel(item.linkedLoanId)}</div></td>
+					<td class="cell">
+						<div class="row-actions">
+							<button type="button" class="row-action" onclick={() => openEditDialog(item)} aria-label="Edit wishlist item"><PencilIcon size={12} strokeWidth={1.8} /></button>
+							<button type="button" class="row-action danger" onclick={() => handleDelete(item.id)} aria-label="Delete wishlist item"><Trash2Icon size={12} strokeWidth={1.8} /></button>
+						</div>
+					</td>
+				</tr>
+			{:else}
+				<tr><td colspan={8} class="table-empty-state">No wishlist items match the current filters.</td></tr>
+			{/each}
+		</tbody>
+	</Table>
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
@@ -459,9 +478,6 @@
 	}
 
 	.toggle-group, .spread { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-	:global(.header-row) { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)), color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12,20,14,.14)); }
-	:global(.head) { height: 3.7rem; padding: 1.15rem 1.25rem; font-size: .82rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--app-text-secondary); }
-	:global(.cell) { padding: 1.15rem 1.25rem; vertical-align: middle; font-size: 1.06rem; }
 	.item-name { font-size: 1.16rem; font-weight: 700; color: var(--app-text-primary); }
 	.category-name { font-size: .9rem; }
 	.muted-copy { margin-top: .24rem; font-size: .76rem; color: var(--app-text-muted); }
@@ -478,7 +494,6 @@
 	.row-action { display: inline-flex; align-items: center; justify-content: center; width: 1.9rem; height: 1.9rem; border-radius: .55rem; border: 1px solid var(--app-border); background: rgba(255,255,255,.025); color: var(--app-text-secondary); }
 	.row-action.danger:hover { color: var(--app-red); border-color: color-mix(in oklab, var(--app-red) 60%, var(--app-border)); }
 	.slider-value { font-family: var(--ds-font-mono); font-weight: 700; color: var(--app-accent-light); }
-	:global(.empty-state) { padding: 4.5rem 1rem; text-align: center; font-size: .92rem; color: var(--app-text-muted); }
 	.dialog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
 	.form-field, .category-manager, .category-editor { display: flex; flex-direction: column; gap: .38rem; }
 	.form-field.full { grid-column: 1 / -1; }
@@ -489,3 +504,4 @@
 	@media (max-width: 768px) { .row-actions { opacity: 1; } }
 	@media (max-width: 640px) { .dialog-grid { grid-template-columns: 1fr; } }
 </style>
+

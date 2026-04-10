@@ -14,7 +14,7 @@
 	interface Props {
 		categories: BudgetCategory[];
 		summaryByCategory: Map<string, number>;
-		selectedCategoryFilter: string;
+		selectedCategoryFilter: string[];
 		onSaved: () => void | Promise<void>;
 		onError: (message: string) => void;
 		onCategoryDeleted: (categoryId: string) => void;
@@ -145,7 +145,7 @@
 
 		try {
 			await deleteBudgetCategory(fetch, categoryId);
-			if (selectedCategoryFilter === categoryId) {
+			if (selectedCategoryFilter.includes(categoryId)) {
 				onCategoryDeleted(categoryId);
 			}
 			await onSaved();

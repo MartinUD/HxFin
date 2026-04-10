@@ -190,10 +190,43 @@ export const transactions = sqliteTable(
 		normalizedDescription: text('normalized_description').notNull(),
 		amount: real('amount').notNull(),
 		currency: text('currency').notNull().default('SEK'),
+		importFingerprint: text('import_fingerprint').notNull(),
 		categoryId: text('category_id').references(() => budgetCategories.id, { onDelete: 'set null' }),
 		matchMethod: text('match_method')
-			.$type<'rule_exact' | 'history_exact' | 'manual' | 'needs_review'>()
+			.$type<
+				| 'rule_exact'
+				| 'history_exact'
+				| 'heuristic_keyword'
+				| 'codex_auto'
+				| 'codex_suggested'
+				| 'manual'
+				| 'needs_review'
+				| 'skipped_non_expense'
+			>()
 			.notNull(),
+		categorizationStatus: text('categorization_status')
+			.$type<'categorized' | 'suggested' | 'needs_review' | 'skipped'>()
+			.notNull()
+			.default('needs_review'),
+		categorizationSource: text('categorization_source')
+			.$type<
+				| 'rule_exact'
+				| 'history_exact'
+				| 'heuristic_keyword'
+				| 'codex_auto'
+				| 'codex_suggested'
+				| 'manual'
+				| 'skipped_non_expense'
+			>()
+			.notNull()
+			.default('rule_exact'),
+		suggestedCategoryId: text('suggested_category_id').references(() => budgetCategories.id, {
+			onDelete: 'set null',
+		}),
+		suggestedConfidence: real('suggested_confidence'),
+		suggestedReason: text('suggested_reason'),
+		suggestedByModel: text('suggested_by_model'),
+		suggestedAt: text('suggested_at'),
 		importBatchId: text('import_batch_id')
 			.notNull()
 			.references(() => importBatches.id, { onDelete: 'cascade' }),
@@ -205,7 +238,11 @@ export const transactions = sqliteTable(
 		index('idx_transactions_normalized_description').on(table.normalizedDescription),
 		index('idx_transactions_category_id').on(table.categoryId),
 		index('idx_transactions_match_method').on(table.matchMethod),
+		index('idx_transactions_categorization_status').on(table.categorizationStatus),
+		index('idx_transactions_categorization_source').on(table.categorizationSource),
+		index('idx_transactions_suggested_category_id').on(table.suggestedCategoryId),
 		index('idx_transactions_booking_date').on(table.bookingDate),
+		uniqueIndex('transactions_import_fingerprint_unique').on(table.importFingerprint),
 	],
 );
 
@@ -226,5 +263,32 @@ export const merchantCategoryRules = sqliteTable(
 			table.normalizedDescription,
 		),
 		index('idx_merchant_category_rules_category_id').on(table.categoryId),
+	],
+);
+
+export const merchantCategoryCodexCache = sqliteTable(
+	'merchant_category_codex_cache',
+	{
+		id: text('id').primaryKey(),
+		normalizedDescription: text('normalized_description').notNull(),
+		sampleDescription: text('sample_description').notNull(),
+		suggestedCategoryId: text('suggested_category_id').references(() => budgetCategories.id, {
+			onDelete: 'set null',
+		}),
+		confidence: real('confidence').notNull(),
+		reason: text('reason'),
+		modelLabel: text('model_label').notNull(),
+		promptVersion: text('prompt_version').notNull(),
+		categoriesHash: text('categories_hash').notNull(),
+		createdAt: text('created_at').notNull(),
+		updatedAt: text('updated_at').notNull(),
+	},
+	(table) => [
+		uniqueIndex('merchant_category_codex_cache_lookup_unique').on(
+			table.normalizedDescription,
+			table.promptVersion,
+			table.categoriesHash,
+		),
+		index('idx_merchant_category_codex_cache_category_id').on(table.suggestedCategoryId),
 	],
 );
