@@ -10,14 +10,15 @@
 		deleteBudgetCategory,
 		updateBudgetCategory,
 	} from '../api';
+	import type { CategoryFilter } from '../selectors';
 
 	interface Props {
 		categories: BudgetCategory[];
-		summaryByCategory: Map<string, number>;
-		selectedCategoryFilter: string[];
+		summaryByCategory: Map<number, number>;
+		selectedCategoryFilter: CategoryFilter[];
 		onSaved: () => void | Promise<void>;
 		onError: (message: string) => void;
-		onCategoryDeleted: (categoryId: string) => void;
+		onCategoryDeleted: (categoryId: number) => void;
 	}
 
 	interface CategoryForm {
@@ -38,7 +39,7 @@
 	let dialogOpen = $state(false);
 	let submitting = $state(false);
 	let addingCategory = $state(false);
-	let editingCategoryId = $state<string | null>(null);
+	let editingCategoryId = $state<number | null>(null);
 	let newCategoryForm = $state<CategoryForm>(createEmptyCategoryForm());
 	let editCategoryForm = $state<CategoryForm>(createEmptyCategoryForm());
 
@@ -136,7 +137,7 @@
 		}
 	}
 
-	async function handleDeleteCategory(categoryId: string): Promise<void> {
+	async function handleDeleteCategory(categoryId: number): Promise<void> {
 		if (!confirm('Delete this category and all its costs?')) {
 			return;
 		}

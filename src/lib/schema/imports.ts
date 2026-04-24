@@ -1,6 +1,11 @@
 import * as Schema from 'effect/Schema';
 
-import { IsoDateSchema, IsoDateTimeSchema, NullableStringSchema } from '$lib/schema/common';
+import {
+	IsoDateSchema,
+	IsoDateTimeSchema,
+	NullableNumberSchema,
+	NullableStringSchema,
+} from '$lib/schema/common';
 
 export const TransactionMatchMethodSchema = Schema.Literal(
 	'rule_exact',
@@ -59,12 +64,12 @@ export const ImportedTransactionSchema = Schema.Struct({
 	normalizedDescription: Schema.String,
 	amount: Schema.Number,
 	currency: Schema.String,
-	categoryId: NullableStringSchema,
+	categoryId: NullableNumberSchema,
 	categoryName: NullableStringSchema,
 	matchMethod: TransactionMatchMethodSchema,
 	categorizationStatus: TransactionCategorizationStatusSchema,
 	categorizationSource: TransactionCategorizationSourceSchema,
-	suggestedCategoryId: NullableStringSchema,
+	suggestedCategoryId: NullableNumberSchema,
 	suggestedCategoryName: NullableStringSchema,
 	suggestedConfidence: Schema.NullOr(Schema.Number),
 	suggestedReason: NullableStringSchema,
@@ -81,7 +86,7 @@ export type ImportedTransaction = Schema.Schema.Type<typeof ImportedTransactionS
 export const MerchantCategoryRuleSchema = Schema.Struct({
 	id: Schema.String,
 	normalizedDescription: Schema.String,
-	categoryId: Schema.String,
+	categoryId: Schema.Number,
 	categoryName: NullableStringSchema,
 	confidence: Schema.Number,
 	createdAt: IsoDateTimeSchema,
@@ -145,7 +150,7 @@ export type ListReviewTransactionsQuery = Schema.Schema.Type<
 >;
 
 export const AssignTransactionCategoryInputSchema = Schema.Struct({
-	categoryId: NullableStringSchema,
+	categoryId: NullableNumberSchema,
 	saveRule: Schema.optional(Schema.Boolean),
 });
 

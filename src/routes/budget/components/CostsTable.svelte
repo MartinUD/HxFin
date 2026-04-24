@@ -10,15 +10,16 @@
 		toggleSort as toggleTableSort,
 	} from '$lib/components/ui/table';
 	import type { BudgetCategory, RecurringCost } from '$lib/schema/budget';
+	import type { CategoryFilter } from '../selectors';
 
 	interface Props {
 		filteredCosts: RecurringCost[];
 		categoriesCount: number;
-		selectedCategoryFilter: string[];
-		categoryMap: Map<string, BudgetCategory>;
+		selectedCategoryFilter: CategoryFilter[];
+		categoryMap: Map<number, BudgetCategory>;
 		filteredMonthlyTotal: number;
 		onEditCost: (cost: RecurringCost) => void;
-		onDeleteCost: (id: string) => void;
+		onDeleteCost: (id: number) => void;
 	}
 
 	type CostSortKey = 'name' | 'category' | 'type' | 'essential' | 'period' | 'amount' | 'monthly';
@@ -117,7 +118,7 @@
 		return comparison !== 0 ? comparison : right.createdAt.localeCompare(left.createdAt);
 	}
 
-	function getCategoryTagStyle(categoryId: string): string {
+	function getCategoryTagStyle(categoryId: number): string {
 		const color = categoryMap.get(categoryId)?.color;
 		const background = color ? `${color}22` : 'var(--app-bg-input)';
 		const borderColor = color ? `${color}40` : 'var(--app-border)';

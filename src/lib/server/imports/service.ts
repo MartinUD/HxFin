@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import * as Effect from 'effect/Effect';
 
 import { notFoundError, persistenceError } from '$lib/effect/errors';
-import { listCategories, getCategoryById } from '$lib/server/budget/categories.repository';
 import {
 	type AiCategorizationResult,
 	type AiCategorizer,
@@ -23,9 +22,11 @@ import { normalizeMerchantDescription } from '$lib/server/imports/normalization'
 import {
 	createImportBatch,
 	findMostRecentCategorizedTransactionByNormalizedDescription,
+	getCategoryById,
 	getMerchantCategoryCodexCacheByLookup,
 	getMerchantCategoryRuleByNormalizedDescription,
 	getTransactionById,
+	listCategories,
 	listTransactionsByImportFingerprints,
 	insertImportedTransaction,
 	listImportBatches,

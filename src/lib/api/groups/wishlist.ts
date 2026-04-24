@@ -13,52 +13,59 @@ import {
 	WishlistItemSchema,
 } from '$lib/schema/wishlist';
 
+// Paths match the Rust handlers in
+// `backend/src/routes/budget/planned_purchases/{items,categories}.rs`.
+// The SvelteKit proxy forwards every `/api/budget/*` request to Rust, so
+// the TS stub handlers in `$lib/server/api.ts` are unreachable by design.
+// Path params use `NumberFromString` because the Rust backend uses integer
+// ids (see migration 0020).
 export const wishlistApiGroup = HttpApiGroup.make('wishlist')
 	.add(
-		HttpApiEndpoint.get('listWishlistItems', '/wishlist')
+		HttpApiEndpoint.get('listWishlistItems', '/budget/planned-purchases')
 			.setUrlParams(ListWishlistItemsQuerySchema)
 			.addSuccess(Schema.Array(WishlistItemSchema)),
 	)
 	.add(
-		HttpApiEndpoint.post('createWishlistItem', '/wishlist')
+		HttpApiEndpoint.post('createWishlistItem', '/budget/planned-purchases')
 			.setPayload(CreateWishlistItemInputSchema)
 			.addSuccess(WishlistItemSchema, { status: 201 }),
 	)
 	.add(
 		HttpApiEndpoint.patch(
 			'updateWishlistItem',
-		)`/wishlist/${HttpApiSchema.param('itemId', Schema.String)}`
+		)`/budget/planned-purchases/${HttpApiSchema.param('itemId', Schema.NumberFromString)}`
 			.setPayload(UpdateWishlistItemInputSchema)
 			.addSuccess(WishlistItemSchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteWishlistItem',
-		)`/wishlist/${HttpApiSchema.param('itemId', Schema.String)}`.addSuccess(
+		)`/budget/planned-purchases/${HttpApiSchema.param('itemId', Schema.NumberFromString)}`.addSuccess(
 			HttpApiSchema.NoContent,
 		),
 	)
 	.add(
-		HttpApiEndpoint.get('listWishlistCategories', '/wishlist/categories').addSuccess(
-			Schema.Array(WishlistCategorySchema),
-		),
+		HttpApiEndpoint.get(
+			'listWishlistCategories',
+			'/budget/planned-purchases/categories',
+		).addSuccess(Schema.Array(WishlistCategorySchema)),
 	)
 	.add(
-		HttpApiEndpoint.post('createWishlistCategory', '/wishlist/categories')
+		HttpApiEndpoint.post('createWishlistCategory', '/budget/planned-purchases/categories')
 			.setPayload(CreateWishlistCategoryInputSchema)
 			.addSuccess(WishlistCategorySchema, { status: 201 }),
 	)
 	.add(
 		HttpApiEndpoint.patch(
 			'updateWishlistCategory',
-		)`/wishlist/categories/${HttpApiSchema.param('categoryId', Schema.String)}`
+		)`/budget/planned-purchases/categories/${HttpApiSchema.param('categoryId', Schema.NumberFromString)}`
 			.setPayload(UpdateWishlistCategoryInputSchema)
 			.addSuccess(WishlistCategorySchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteWishlistCategory',
-		)`/wishlist/categories/${HttpApiSchema.param('categoryId', Schema.String)}`.addSuccess(
+		)`/budget/planned-purchases/categories/${HttpApiSchema.param('categoryId', Schema.NumberFromString)}`.addSuccess(
 			HttpApiSchema.NoContent,
 		),
 	);

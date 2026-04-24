@@ -7,8 +7,10 @@ import {
 	PositiveAmountSchema,
 } from '$lib/schema/common';
 
+// `id` is a number since migration 0022 moved `financial_profile.id` to
+// INTEGER PRIMARY KEY AUTOINCREMENT. The row is still a singleton in practice.
 export const FinancialProfileSchema = Schema.Struct({
-	id: Schema.String,
+	id: Schema.Number,
 	monthlySalary: PositiveAmountSchema,
 	salaryGrowth: PercentageSchema,
 	municipalTaxRate: PercentageSchema,

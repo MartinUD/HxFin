@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, desc, eq, inArray, isNotNull, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/sqlite-core';
 
+import type { BudgetCategory } from '$lib/schema/budget';
 import sqlite from '$lib/server/db';
 import { orm } from '$lib/server/drizzle/client';
 import {
@@ -31,7 +32,7 @@ export interface MerchantCategoryCodexCacheEntry {
 	id: string;
 	normalizedDescription: string;
 	sampleDescription: string;
-	suggestedCategoryId: string | null;
+	suggestedCategoryId: number | null;
 	suggestedCategoryName: string | null;
 	confidence: number;
 	reason: string | null;
@@ -50,6 +51,30 @@ function nowIso(): string {
 	return new Date().toISOString();
 }
 
+// Inlined from the now-decommissioned $lib/server/budget/categories.repository.
+// The budget-categories CRUD lives in the Rust backend; these two read-only
+// helpers stay in the TS side because imports/ still does server-internal
+// lookups against `budget_categories` during categorization / reprocessing.
+// Once imports/ migrates to Rust, delete these along with the file.
+export function listCategories(): BudgetCategory[] {
+	ensureReady();
+	return orm
+		.select()
+		.from(budgetCategories)
+		.orderBy(sql`${budgetCategories.name} collate nocase asc`)
+		.all();
+}
+
+export function getCategoryById(categoryId: number): BudgetCategory | null {
+	ensureReady();
+	const row = orm
+		.select()
+		.from(budgetCategories)
+		.where(eq(budgetCategories.id, categoryId))
+		.get();
+	return row ?? null;
+}
+
 const suggestedBudgetCategories = alias(budgetCategories, 'suggested_budget_categories');
 
 function mapImportedTransaction(row: {
@@ -59,12 +84,12 @@ function mapImportedTransaction(row: {
 	normalizedDescription: string;
 	amount: number;
 	currency: string;
-	categoryId: string | null;
+	categoryId: number | null;
 	categoryName: string | null;
 	matchMethod: TransactionMatchMethod;
 	categorizationStatus: TransactionCategorizationStatus;
 	categorizationSource: TransactionCategorizationSource;
-	suggestedCategoryId: string | null;
+	suggestedCategoryId: number | null;
 	suggestedCategoryName: string | null;
 	suggestedConfidence: number | null;
 	suggestedReason: string | null;
@@ -81,7 +106,7 @@ function mapImportedTransaction(row: {
 function mapMerchantCategoryRule(row: {
 	id: string;
 	normalizedDescription: string;
-	categoryId: string;
+	categoryId: number;
 	categoryName: string | null;
 	confidence: number;
 	createdAt: string;
@@ -94,7 +119,7 @@ function mapMerchantCategoryCodexCacheEntry(row: {
 	id: string;
 	normalizedDescription: string;
 	sampleDescription: string;
-	suggestedCategoryId: string | null;
+	suggestedCategoryId: number | null;
 	suggestedCategoryName: string | null;
 	confidence: number;
 	reason: string | null;
@@ -223,10 +248,10 @@ export function insertImportedTransaction(input: {
 	amount: number;
 	currency: string;
 	importFingerprint: string;
-	categoryId: string | null;
+	categoryId: number | null;
 	categorizationStatus: TransactionCategorizationStatus;
 	categorizationSource: TransactionCategorizationSource;
-	suggestedCategoryId?: string | null;
+	suggestedCategoryId?: number | null;
 	suggestedConfidence?: number | null;
 	suggestedReason?: string | null;
 	suggestedByModel?: string | null;
@@ -398,7 +423,7 @@ export function listImportTransactions(
 export function updateTransactionCategory(
 	transactionId: string,
 	input: {
-		categoryId: string | null;
+		categoryId: number | null;
 		categorizationStatus: TransactionCategorizationStatus;
 		categorizationSource: TransactionCategorizationSource;
 	},
@@ -431,10 +456,10 @@ export function updateTransactionCategory(
 export function updateTransactionCategorization(
 	transactionId: string,
 	input: {
-		categoryId: string | null;
+		categoryId: number | null;
 		categorizationStatus: TransactionCategorizationStatus;
 		categorizationSource: TransactionCategorizationSource;
-		suggestedCategoryId?: string | null;
+		suggestedCategoryId?: number | null;
 		suggestedConfidence?: number | null;
 		suggestedReason?: string | null;
 		suggestedByModel?: string | null;
@@ -491,7 +516,7 @@ export function getMerchantCategoryRuleByNormalizedDescription(
 
 export function upsertMerchantCategoryRule(input: {
 	normalizedDescription: string;
-	categoryId: string;
+	categoryId: number;
 	confidence?: number;
 }): MerchantCategoryRule {
 	ensureReady();
@@ -602,7 +627,7 @@ export function getMerchantCategoryCodexCacheByLookup(input: {
 export function upsertMerchantCategoryCodexCache(input: {
 	normalizedDescription: string;
 	sampleDescription: string;
-	suggestedCategoryId: string | null;
+	suggestedCategoryId: number | null;
 	confidence: number;
 	reason?: string | null;
 	modelLabel: string;

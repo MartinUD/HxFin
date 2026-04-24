@@ -4,8 +4,7 @@ import { describe, it } from 'node:test';
 import {
 	buildCategoryMap,
 	buildSummaryByCategory,
-	filterActiveCosts,
-	getActiveCostCount,
+	filterCostsByCategory,
 	getFilteredMonthlyTotal,
 } from '../src/routes/budget/selectors.ts';
 
@@ -39,7 +38,6 @@ const costs = [
 		isEssential: true,
 		startDate: '2026-03-01',
 		endDate: null,
-		isActive: true,
 		createdAt: '2026-03-01T00:00:00.000Z',
 		updatedAt: '2026-03-01T00:00:00.000Z',
 	},
@@ -53,7 +51,6 @@ const costs = [
 		isEssential: false,
 		startDate: '2026-03-01',
 		endDate: null,
-		isActive: false,
 		createdAt: '2026-03-01T00:00:00.000Z',
 		updatedAt: '2026-03-01T00:00:00.000Z',
 	},
@@ -67,17 +64,16 @@ const costs = [
 		isEssential: false,
 		startDate: '2026-03-01',
 		endDate: null,
-		isActive: true,
 		createdAt: '2026-03-01T00:00:00.000Z',
 		updatedAt: '2026-03-01T00:00:00.000Z',
 	},
 ] as const;
 
 describe('budget selectors', () => {
-	it('filters to active costs and respects the category filter', () => {
-		assert.equal(filterActiveCosts(costs, 'all').length, 2);
-		assert.equal(filterActiveCosts(costs, 'cat-housing').length, 1);
-		assert.equal(filterActiveCosts(costs, 'cat-saving')[0]?.id, 'cost-index');
+	it('filters costs by category', () => {
+		assert.equal(filterCostsByCategory(costs, 'all').length, 3);
+		assert.equal(filterCostsByCategory(costs, 'cat-housing').length, 2);
+		assert.equal(filterCostsByCategory(costs, 'cat-saving')[0]?.id, 'cost-index');
 	});
 
 	it('builds category and summary lookup maps', () => {
@@ -106,11 +102,10 @@ describe('budget selectors', () => {
 		assert.equal(summaryByCategory.get('cat-housing'), 9000);
 	});
 
-	it('computes monthly totals and active counts from active costs', () => {
-		assert.equal(getActiveCostCount(costs), 2);
+	it('computes monthly totals from filtered costs', () => {
 		assert.equal(
-			Number(getFilteredMonthlyTotal(filterActiveCosts(costs, 'all')).toFixed(2)),
-			11166.67,
+			Number(getFilteredMonthlyTotal(filterCostsByCategory(costs, 'all')).toFixed(2)),
+			11266.67,
 		);
 	});
 });

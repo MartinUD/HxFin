@@ -18,18 +18,21 @@ export type WishlistFundingStrategy = Schema.Schema.Type<typeof WishlistFundingS
 export const WishlistTargetAmountTypeSchema = Schema.Literal('exact', 'estimate');
 export type WishlistTargetAmountType = Schema.Schema.Type<typeof WishlistTargetAmountTypeSchema>;
 
+// `id`, `categoryId`, and `linkedLoanId` are all numbers — `id`/`categoryId`
+// since migration 0020, `linkedLoanId` since migration 0021 (which flipped
+// loans.id to INTEGER and rebuilt the FK).
 export const WishlistCategorySchema = Schema.Struct({
-	id: Schema.String,
+	id: Schema.Number,
 	name: Schema.String,
 	description: NullableStringSchema,
-	createdAt: Schema.String,
-	updatedAt: Schema.String,
+	createdAt: IsoDateTimeSchema,
+	updatedAt: IsoDateTimeSchema,
 });
 
 export type WishlistCategory = Schema.Schema.Type<typeof WishlistCategorySchema>;
 
 export const WishlistItemSchema = Schema.Struct({
-	id: Schema.String,
+	id: Schema.Number,
 	name: Schema.String,
 	targetAmount: PositiveAmountSchema,
 	targetDate: NullableIsoDateSchema,
@@ -39,9 +42,9 @@ export const WishlistItemSchema = Schema.Struct({
 		Schema.greaterThanOrEqualTo(0),
 		Schema.lessThanOrEqualTo(10),
 	),
-	categoryId: NullableStringSchema,
+	categoryId: Schema.NullOr(Schema.Number),
 	fundingStrategy: WishlistFundingStrategySchema,
-	linkedLoanId: NullableStringSchema,
+	linkedLoanId: Schema.NullOr(Schema.Number),
 	notes: NullableStringSchema,
 	createdAt: IsoDateTimeSchema,
 	updatedAt: IsoDateTimeSchema,
@@ -75,9 +78,9 @@ export const CreateWishlistItemInputSchema = Schema.Struct({
 	priority: Schema.optional(
 		Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0), Schema.lessThanOrEqualTo(10)),
 	),
-	categoryId: Schema.optional(NullableStringSchema),
+	categoryId: Schema.optional(Schema.NullOr(Schema.Number)),
 	fundingStrategy: Schema.optional(WishlistFundingStrategySchema),
-	linkedLoanId: Schema.optional(NullableStringSchema),
+	linkedLoanId: Schema.optional(Schema.NullOr(Schema.Number)),
 	notes: Schema.optional(NullableStringSchema),
 });
 
@@ -91,9 +94,9 @@ export const UpdateWishlistItemInputSchema = Schema.Struct({
 	priority: Schema.optional(
 		Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(0), Schema.lessThanOrEqualTo(10)),
 	),
-	categoryId: Schema.optional(NullableStringSchema),
+	categoryId: Schema.optional(Schema.NullOr(Schema.Number)),
 	fundingStrategy: Schema.optional(WishlistFundingStrategySchema),
-	linkedLoanId: Schema.optional(NullableStringSchema),
+	linkedLoanId: Schema.optional(Schema.NullOr(Schema.Number)),
 	notes: Schema.optional(NullableStringSchema),
 });
 

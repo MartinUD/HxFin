@@ -22,12 +22,12 @@ export const loansApiGroup = HttpApiGroup.make('loans')
 			.addSuccess(LoanSchema, { status: 201 }),
 	)
 	.add(
-		HttpApiEndpoint.patch('updateLoan')`/loans/${HttpApiSchema.param('loanId', Schema.String)}`
+		HttpApiEndpoint.patch('updateLoan')`/loans/${HttpApiSchema.param('loanId', Schema.NumberFromString)}`
 			.setPayload(UpdateLoanInputSchema)
 			.addSuccess(LoanSchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteLoan',
-		)`/loans/${HttpApiSchema.param('loanId', Schema.String)}`.addSuccess(HttpApiSchema.NoContent),
+		)`/loans/${HttpApiSchema.param('loanId', Schema.NumberFromString)}`.addSuccess(HttpApiSchema.NoContent),
 	);

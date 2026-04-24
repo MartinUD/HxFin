@@ -63,7 +63,7 @@ function toIsoDate(dayMonth: string): string {
 async function fetchNordeaQuote(url: string): Promise<NordeaQuote> {
 	const response = await fetch(url, {
 		headers: {
-			'user-agent': 'Mozilla/5.0 FinDash/1.0',
+			'user-agent': 'Mozilla/5.0 HxFin/1.0',
 			accept: 'text/html,application/xhtml+xml',
 		},
 	});
