@@ -7,9 +7,16 @@ build
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Rust build artifacts — `cargo build` output, never checked in.
+backend/target/
+
+# Local Claude Code settings — personal tool config, not shared.
+.claude/
+
 # Local financial data and ad-hoc imports
 data/*.db
 data/*.db-*
+data/*.bak*
 data/*.sqlite*
 csv/*.csv
 tmp_avanza*.html
