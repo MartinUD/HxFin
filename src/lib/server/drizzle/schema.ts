@@ -7,7 +7,7 @@ export const schemaMigrations = sqliteTable('schema_migrations', {
 });
 
 export const budgetCategories = sqliteTable('budget_categories', {
-	id: text('id').primaryKey(),
+	id: integer('id').primaryKey({ autoIncrement: true }),
 	name: text('name').notNull(),
 	description: text('description'),
 	color: text('color'),
@@ -18,8 +18,8 @@ export const budgetCategories = sqliteTable('budget_categories', {
 export const recurringCosts = sqliteTable(
 	'recurring_costs',
 	{
-		id: text('id').primaryKey(),
-		categoryId: text('category_id')
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		categoryId: integer('category_id')
 			.notNull()
 			.references(() => budgetCategories.id, { onDelete: 'cascade' }),
 		name: text('name').notNull(),
@@ -27,7 +27,6 @@ export const recurringCosts = sqliteTable(
 		period: text('period').$type<'weekly' | 'monthly' | 'yearly'>().notNull(),
 		startDate: text('start_date'),
 		endDate: text('end_date'),
-		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 		createdAt: text('created_at').notNull(),
 		updatedAt: text('updated_at').notNull(),
 		isEssential: integer('is_essential', { mode: 'boolean' }).notNull().default(false),
@@ -35,13 +34,12 @@ export const recurringCosts = sqliteTable(
 	},
 	(table) => [
 		index('idx_recurring_costs_category_id').on(table.categoryId),
-		index('idx_recurring_costs_is_active').on(table.isActive),
 		index('idx_recurring_costs_kind').on(table.kind),
 	],
 );
 
 export const financialProfile = sqliteTable('financial_profile', {
-	id: text('id').primaryKey(),
+	id: integer('id').primaryKey({ autoIncrement: true }),
 	monthlySalary: real('monthly_salary').notNull().default(40000),
 	salaryGrowth: real('salary_growth').notNull().default(6),
 	municipalTaxRate: real('municipal_tax_rate').notNull().default(32.41),
@@ -107,7 +105,7 @@ export const investmentHoldingSnapshots = sqliteTable(
 export const loans = sqliteTable(
 	'loans',
 	{
-		id: text('id').primaryKey(),
+		id: integer('id').primaryKey({ autoIncrement: true }),
 		direction: text('direction').$type<'lent' | 'borrowed'>().notNull(),
 		counterparty: text('counterparty').notNull(),
 		principalAmount: real('principal_amount').notNull(),
@@ -130,7 +128,7 @@ export const loans = sqliteTable(
 export const wishlistCategories = sqliteTable(
 	'wishlist_categories',
 	{
-		id: text('id').primaryKey(),
+		id: integer('id').primaryKey(),
 		name: text('name').notNull(),
 		description: text('description'),
 		createdAt: text('created_at').notNull(),
@@ -142,7 +140,7 @@ export const wishlistCategories = sqliteTable(
 export const wishlistItems = sqliteTable(
 	'wishlist_items',
 	{
-		id: text('id').primaryKey(),
+		id: integer('id').primaryKey({ autoIncrement: true }),
 		name: text('name').notNull(),
 		targetAmount: real('target_amount').notNull(),
 		targetAmountType: text('target_amount_type')
@@ -151,13 +149,13 @@ export const wishlistItems = sqliteTable(
 			.default('exact'),
 		targetDate: text('target_date'),
 		priority: integer('priority').notNull().default(5),
-		categoryId: text('category_id').references(() => wishlistCategories.id, {
+		categoryId: integer('category_id').references(() => wishlistCategories.id, {
 			onDelete: 'set null',
 		}),
 		fundingStrategy: text('funding_strategy')
 			.$type<'save' | 'loan' | 'mixed' | 'buy_outright'>()
 			.notNull(),
-		linkedLoanId: text('linked_loan_id').references(() => loans.id, { onDelete: 'set null' }),
+		linkedLoanId: integer('linked_loan_id').references(() => loans.id, { onDelete: 'set null' }),
 		currency: text('currency').notNull().default('SEK'),
 		notes: text('notes'),
 		createdAt: text('created_at').notNull(),
@@ -191,7 +189,7 @@ export const transactions = sqliteTable(
 		amount: real('amount').notNull(),
 		currency: text('currency').notNull().default('SEK'),
 		importFingerprint: text('import_fingerprint').notNull(),
-		categoryId: text('category_id').references(() => budgetCategories.id, { onDelete: 'set null' }),
+		categoryId: integer('category_id').references(() => budgetCategories.id, { onDelete: 'set null' }),
 		matchMethod: text('match_method')
 			.$type<
 				| 'rule_exact'
@@ -220,7 +218,7 @@ export const transactions = sqliteTable(
 			>()
 			.notNull()
 			.default('rule_exact'),
-		suggestedCategoryId: text('suggested_category_id').references(() => budgetCategories.id, {
+		suggestedCategoryId: integer('suggested_category_id').references(() => budgetCategories.id, {
 			onDelete: 'set null',
 		}),
 		suggestedConfidence: real('suggested_confidence'),
@@ -251,7 +249,7 @@ export const merchantCategoryRules = sqliteTable(
 	{
 		id: text('id').primaryKey(),
 		normalizedDescription: text('normalized_description').notNull(),
-		categoryId: text('category_id')
+		categoryId: integer('category_id')
 			.notNull()
 			.references(() => budgetCategories.id, { onDelete: 'cascade' }),
 		confidence: real('confidence').notNull().default(1),
@@ -272,7 +270,7 @@ export const merchantCategoryCodexCache = sqliteTable(
 		id: text('id').primaryKey(),
 		normalizedDescription: text('normalized_description').notNull(),
 		sampleDescription: text('sample_description').notNull(),
-		suggestedCategoryId: text('suggested_category_id').references(() => budgetCategories.id, {
+		suggestedCategoryId: integer('suggested_category_id').references(() => budgetCategories.id, {
 			onDelete: 'set null',
 		}),
 		confidence: real('confidence').notNull(),

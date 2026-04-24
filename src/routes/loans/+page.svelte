@@ -67,7 +67,8 @@
 	let errorMessage = $state<string | null>(null);
 	let dialogOpen = $state(false);
 	let dialogMode = $state<'add' | 'edit'>('add');
-	let editingLoanId = $state('');
+	// Loan ids are INTEGER since migration 0021; null means "no loan selected".
+	let editingLoanId = $state<number | null>(null);
 	let statusFilter = $state<'all' | LoanStatus>('all');
 	let directionFilter = $state<'all' | LoanDirection>('all');
 	let loanSort = $state<{ key: LoanSortKey; direction: SortDirection }>({
@@ -260,7 +261,7 @@
 
 	function openAddDialog(): void {
 		dialogMode = 'add';
-		editingLoanId = '';
+		editingLoanId = null;
 		resetForm();
 		dialogOpen = true;
 	}
@@ -279,10 +280,11 @@
 			const payload = createPayloadFromForm();
 			if (dialogMode === 'add') {
 				await apiRun((client) => client.loans.createLoan({ payload }));
-			} else if (editingLoanId) {
+			} else if (editingLoanId !== null) {
+				const loanId = editingLoanId;
 				await apiRun((client) =>
 					client.loans.updateLoan({
-						path: { loanId: editingLoanId },
+						path: { loanId },
 						payload
 					})
 				);
@@ -293,7 +295,7 @@
 		}, 'Failed to save loan');
 	}
 
-	async function handleDelete(loanId: string): Promise<void> {
+	async function handleDelete(loanId: number): Promise<void> {
 		if (!confirm('Delete this loan?')) return;
 
 		await runMutation(async () => {
@@ -308,7 +310,7 @@
 </script>
 
 <svelte:head>
-	<title>Loans — FinDash</title>
+	<title>Loans — HxFin</title>
 </svelte:head>
 
 <div class="app-page loans-page">

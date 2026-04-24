@@ -29,14 +29,14 @@ export const budgetApiGroup = HttpApiGroup.make('budget')
 	.add(
 		HttpApiEndpoint.patch(
 			'updateBudgetCategory',
-		)`/budget/categories/${HttpApiSchema.param('categoryId', Schema.String)}`
+		)`/budget/categories/${HttpApiSchema.param('categoryId', Schema.NumberFromString)}`
 			.setPayload(UpdateCategoryInputSchema)
 			.addSuccess(BudgetCategorySchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteBudgetCategory',
-		)`/budget/categories/${HttpApiSchema.param('categoryId', Schema.String)}`.addSuccess(
+		)`/budget/categories/${HttpApiSchema.param('categoryId', Schema.NumberFromString)}`.addSuccess(
 			HttpApiSchema.NoContent,
 		),
 	)
@@ -53,14 +53,14 @@ export const budgetApiGroup = HttpApiGroup.make('budget')
 	.add(
 		HttpApiEndpoint.patch(
 			'updateRecurringCost',
-		)`/budget/costs/${HttpApiSchema.param('costId', Schema.String)}`
+		)`/budget/costs/${HttpApiSchema.param('costId', Schema.NumberFromString)}`
 			.setPayload(UpdateRecurringCostInputSchema)
 			.addSuccess(RecurringCostSchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteRecurringCost',
-		)`/budget/costs/${HttpApiSchema.param('costId', Schema.String)}`.addSuccess(
+		)`/budget/costs/${HttpApiSchema.param('costId', Schema.NumberFromString)}`.addSuccess(
 			HttpApiSchema.NoContent,
 		),
 	)

@@ -16,7 +16,7 @@ export const LoanStatusSchema = Schema.Literal('open', 'paid', 'overdue');
 export type LoanStatus = Schema.Schema.Type<typeof LoanStatusSchema>;
 
 export const LoanSchema = Schema.Struct({
-	id: Schema.String,
+	id: Schema.Number,
 	direction: LoanDirectionSchema,
 	counterparty: Schema.String,
 	principalAmount: PositiveAmountSchema,

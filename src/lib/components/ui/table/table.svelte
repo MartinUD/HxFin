@@ -119,7 +119,7 @@
 	}
 
 	:global([data-slot='table'] tbody tr:hover > td) {
-		background: var(--table-row-hover, color-mix(in oklab, var(--app-bg-input) 80%, transparent));
+		background: var(--table-row-hover, color-mix(in oklab, var(--app-bg-input) 40%, transparent));
 	}
 
 	:global([data-slot='table'] tbody td) {

@@ -18,7 +18,7 @@ export function createBudgetCategory(
 
 export function updateBudgetCategory(
 	fetcher: typeof fetch,
-	categoryId: string,
+	categoryId: number,
 	payload: UpdateCategoryInput,
 ) {
 	return runUiEffect(
@@ -31,7 +31,7 @@ export function updateBudgetCategory(
 	);
 }
 
-export function deleteBudgetCategory(fetcher: typeof fetch, categoryId: string) {
+export function deleteBudgetCategory(fetcher: typeof fetch, categoryId: number) {
 	return runUiEffect(
 		withApiClient(fetcher, (client) =>
 			client.budget.deleteBudgetCategory({
@@ -52,7 +52,7 @@ export function createRecurringCost(
 
 export function updateRecurringCost(
 	fetcher: typeof fetch,
-	costId: string,
+	costId: number,
 	payload: UpdateRecurringCostInput,
 ) {
 	return runUiEffect(
@@ -65,7 +65,7 @@ export function updateRecurringCost(
 	);
 }
 
-export function deleteRecurringCost(fetcher: typeof fetch, costId: string) {
+export function deleteRecurringCost(fetcher: typeof fetch, costId: number) {
 	return runUiEffect(
 		withApiClient(fetcher, (client) =>
 			client.budget.deleteRecurringCost({

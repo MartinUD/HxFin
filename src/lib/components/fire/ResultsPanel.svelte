@@ -30,20 +30,18 @@
 		<Chart {results} {retirementYear} />
 	</div>
 
-	<div class="fire-strip">
-		<span class="fire-strip-label">FIRE</span>
-		<span class="fire-strip-sep">·</span>
-		<span class="fire-strip-item">År <span class="fire-val">{retirementYear}</span></span>
-		<span class="fire-strip-sep">·</span>
-		<span class="fire-strip-item">
-			{withdrawalRate}% → <span class="fire-val">{formatCurrency(monthlyWithdrawal)}/mån</span>
+	<div class="results-strip">
+		<span class="results-strip-item">År <span class="results-val">{retirementYear}</span></span>
+		<span class="results-strip-sep">·</span>
+		<span class="results-strip-item">
+			{withdrawalRate}% → <span class="results-val">{formatCurrency(monthlyWithdrawal)}/mån</span>
 		</span>
-		<span class="fire-strip-sep">·</span>
-		<span class="fire-strip-item">
-			Portfölj <span class="fire-val">{formatPortfolio(portfolioAtRetirement)}</span>
+		<span class="results-strip-sep">·</span>
+		<span class="results-strip-item">
+			Portfölj <span class="results-val">{formatPortfolio(portfolioAtRetirement)}</span>
 		</span>
-		<span class="fire-strip-sep">·</span>
-		<span class="fire-strip-item">Insättningar <span class="fire-val">{yearsOfSavings}%</span></span>
+		<span class="results-strip-sep">·</span>
+		<span class="results-strip-item">Insättningar <span class="results-val">{yearsOfSavings}%</span></span>
 	</div>
 </div>
 
@@ -55,9 +53,7 @@
 		padding: 1rem 1.1rem 1.1rem;
 		height: 100%;
 		overflow: hidden;
-		background:
-			radial-gradient(100% 65% at 50% -10%, color-mix(in oklab, var(--app-accent) 6%, transparent), transparent 62%),
-			transparent;
+		background: transparent;
 	}
 
 	.chart-wrap {
@@ -66,41 +62,36 @@
 		border-radius: 1rem;
 		overflow: hidden;
 		border: 1px solid var(--ds-glass-border);
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.006)),
-			color-mix(in oklab, var(--ds-glass-surface) 84%, transparent);
+		background: transparent;
 	}
 
-	.fire-strip {
+	.results-strip {
 		display: flex;
 		align-items: center;
 		gap: 10px;
 		padding: 0.85rem 1rem;
 		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
-			color-mix(in oklab, var(--ds-glass-surface) 88%, rgba(245, 158, 11, 0.06));
-		border: 1px solid color-mix(in oklab, var(--app-amber) 22%, var(--ds-glass-border));
+			linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
+			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.14));
+		border: 1px solid var(--ds-glass-border);
 		border-radius: 0.95rem;
 		font-size: 0.9rem;
 		color: var(--app-text-secondary);
 		flex-shrink: 0;
 		flex-wrap: wrap;
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 	}
 
-	.fire-strip-label {
-		font-family: var(--ds-font-display);
-		font-size: 0.72rem;
-		font-weight: 700;
-		color: var(--app-amber);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
-
-	.fire-strip-sep {
+	.results-strip-sep {
 		color: var(--app-text-muted);
 	}
 
-	.fire-val {
+	.results-strip-item {
+		font-size: 0.9rem;
+		color: var(--app-text-secondary);
+	}
+
+	.results-val {
 		color: var(--app-text-primary);
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;

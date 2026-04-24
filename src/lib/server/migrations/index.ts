@@ -1189,4 +1189,427 @@ export const migrations: Migration[] = [
 			`);
 		},
 	},
+	{
+		id: '20260416_0017_budget_categories_integer_id',
+		description:
+			'Migrate budget_categories.id from TEXT (UUID) to INTEGER, and update all referencing foreign keys',
+		up: (db) => {
+			db.exec(`
+				-- We're inside a transaction (the framework wraps up() in one), so we
+				-- can't disable foreign_keys. defer_foreign_keys postpones FK checks
+				-- until COMMIT, which lets us rebuild parent + children atomically.
+				PRAGMA defer_foreign_keys = ON;
+
+				-- Step 1: build a mapping from old TEXT id -> new INTEGER id.
+				-- AUTOINCREMENT keeps ids stable and monotonic (no rowid reuse).
+				CREATE TABLE _category_id_map (
+					new_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					old_id TEXT NOT NULL UNIQUE
+				);
+				INSERT INTO _category_id_map (old_id)
+				SELECT id FROM budget_categories ORDER BY created_at, id;
+
+				-- Step 2: rebuild budget_categories with INTEGER id.
+				CREATE TABLE budget_categories_new (
+					id INTEGER PRIMARY KEY,
+					name TEXT NOT NULL,
+					description TEXT,
+					color TEXT,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO budget_categories_new (id, name, description, color, created_at, updated_at)
+				SELECT m.new_id, bc.name, bc.description, bc.color, bc.created_at, bc.updated_at
+				FROM budget_categories bc
+				JOIN _category_id_map m ON m.old_id = bc.id;
+				DROP TABLE budget_categories;
+				ALTER TABLE budget_categories_new RENAME TO budget_categories;
+
+				-- Step 3: rebuild recurring_costs with INTEGER category_id (NOT NULL, CASCADE).
+				CREATE TABLE recurring_costs_new (
+					id TEXT PRIMARY KEY,
+					category_id INTEGER NOT NULL REFERENCES budget_categories(id) ON DELETE CASCADE,
+					name TEXT NOT NULL,
+					amount NUMERIC NOT NULL,
+					period TEXT NOT NULL CHECK(period IN ('weekly', 'monthly', 'yearly')),
+					start_date TEXT,
+					end_date TEXT,
+					is_active INTEGER NOT NULL DEFAULT 1,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL,
+					is_essential INTEGER NOT NULL DEFAULT 0,
+					kind TEXT NOT NULL DEFAULT 'expense' CHECK(kind IN ('expense', 'investment'))
+				);
+				INSERT INTO recurring_costs_new (
+					id, category_id, name, amount, period, start_date, end_date,
+					is_active, created_at, updated_at, is_essential, kind
+				)
+				SELECT rc.id, m.new_id, rc.name, rc.amount, rc.period, rc.start_date, rc.end_date,
+					rc.is_active, rc.created_at, rc.updated_at, rc.is_essential, rc.kind
+				FROM recurring_costs rc
+				JOIN _category_id_map m ON m.old_id = rc.category_id;
+				DROP TABLE recurring_costs;
+				ALTER TABLE recurring_costs_new RENAME TO recurring_costs;
+				CREATE INDEX idx_recurring_costs_category_id ON recurring_costs (category_id);
+				CREATE INDEX idx_recurring_costs_is_active ON recurring_costs (is_active);
+				CREATE INDEX idx_recurring_costs_kind ON recurring_costs (kind);
+
+				-- Step 4: rebuild merchant_category_rules with INTEGER category_id (NOT NULL, CASCADE).
+				CREATE TABLE merchant_category_rules_new (
+					id TEXT PRIMARY KEY,
+					normalized_description TEXT NOT NULL UNIQUE,
+					category_id INTEGER NOT NULL REFERENCES budget_categories(id) ON DELETE CASCADE,
+					confidence NUMERIC NOT NULL DEFAULT 1,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO merchant_category_rules_new (
+					id, normalized_description, category_id, confidence, created_at, updated_at
+				)
+				SELECT r.id, r.normalized_description, m.new_id, r.confidence, r.created_at, r.updated_at
+				FROM merchant_category_rules r
+				JOIN _category_id_map m ON m.old_id = r.category_id;
+				DROP TABLE merchant_category_rules;
+				ALTER TABLE merchant_category_rules_new RENAME TO merchant_category_rules;
+				CREATE INDEX idx_merchant_category_rules_category_id ON merchant_category_rules (category_id);
+
+				-- Step 5: rebuild merchant_category_codex_cache with INTEGER suggested_category_id
+				-- (nullable, SET NULL). LEFT JOIN so rows with NULL suggestions survive.
+				CREATE TABLE merchant_category_codex_cache_new (
+					id TEXT PRIMARY KEY,
+					normalized_description TEXT NOT NULL,
+					sample_description TEXT NOT NULL,
+					suggested_category_id INTEGER REFERENCES budget_categories(id) ON DELETE SET NULL,
+					confidence NUMERIC NOT NULL,
+					reason TEXT,
+					model_label TEXT NOT NULL,
+					prompt_version TEXT NOT NULL,
+					categories_hash TEXT NOT NULL,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO merchant_category_codex_cache_new (
+					id, normalized_description, sample_description, suggested_category_id,
+					confidence, reason, model_label, prompt_version, categories_hash,
+					created_at, updated_at
+				)
+				SELECT c.id, c.normalized_description, c.sample_description, m.new_id,
+					c.confidence, c.reason, c.model_label, c.prompt_version, c.categories_hash,
+					c.created_at, c.updated_at
+				FROM merchant_category_codex_cache c
+				LEFT JOIN _category_id_map m ON m.old_id = c.suggested_category_id;
+				DROP TABLE merchant_category_codex_cache;
+				ALTER TABLE merchant_category_codex_cache_new RENAME TO merchant_category_codex_cache;
+				CREATE UNIQUE INDEX merchant_category_codex_cache_lookup_unique
+					ON merchant_category_codex_cache (normalized_description, prompt_version, categories_hash);
+				CREATE INDEX idx_merchant_category_codex_cache_category_id
+					ON merchant_category_codex_cache (suggested_category_id);
+
+				-- Step 6: rebuild transactions with INTEGER category_id and suggested_category_id
+				-- (both nullable, SET NULL). Two LEFT JOINs against the mapping table.
+				CREATE TABLE transactions_new (
+					id TEXT PRIMARY KEY,
+					booking_date TEXT NOT NULL,
+					description TEXT NOT NULL,
+					normalized_description TEXT NOT NULL,
+					amount NUMERIC NOT NULL,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					import_fingerprint TEXT NOT NULL,
+					category_id INTEGER REFERENCES budget_categories(id) ON DELETE SET NULL,
+					match_method TEXT NOT NULL CHECK(match_method IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'needs_review', 'skipped_non_expense')),
+					categorization_status TEXT NOT NULL DEFAULT 'needs_review' CHECK(categorization_status IN ('categorized', 'suggested', 'needs_review', 'skipped')),
+					categorization_source TEXT NOT NULL DEFAULT 'rule_exact' CHECK(categorization_source IN ('rule_exact', 'history_exact', 'heuristic_keyword', 'codex_auto', 'codex_suggested', 'manual', 'skipped_non_expense')),
+					suggested_category_id INTEGER REFERENCES budget_categories(id) ON DELETE SET NULL,
+					suggested_confidence NUMERIC,
+					suggested_reason TEXT,
+					suggested_by_model TEXT,
+					suggested_at TEXT,
+					import_batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO transactions_new (
+					id, booking_date, description, normalized_description, amount, currency,
+					import_fingerprint, category_id, match_method, categorization_status,
+					categorization_source, suggested_category_id, suggested_confidence,
+					suggested_reason, suggested_by_model, suggested_at, import_batch_id,
+					created_at, updated_at
+				)
+				SELECT t.id, t.booking_date, t.description, t.normalized_description, t.amount, t.currency,
+					t.import_fingerprint, m1.new_id, t.match_method, t.categorization_status,
+					t.categorization_source, m2.new_id, t.suggested_confidence, t.suggested_reason,
+					t.suggested_by_model, t.suggested_at, t.import_batch_id, t.created_at, t.updated_at
+				FROM transactions t
+				LEFT JOIN _category_id_map m1 ON m1.old_id = t.category_id
+				LEFT JOIN _category_id_map m2 ON m2.old_id = t.suggested_category_id;
+				DROP TABLE transactions;
+				ALTER TABLE transactions_new RENAME TO transactions;
+
+				-- Recreate transactions indexes (mirrors migration 0016).
+				CREATE INDEX idx_transactions_import_batch_id ON transactions (import_batch_id);
+				CREATE INDEX idx_transactions_normalized_description ON transactions (normalized_description);
+				CREATE INDEX idx_transactions_category_id ON transactions (category_id);
+				CREATE INDEX idx_transactions_match_method ON transactions (match_method);
+				CREATE INDEX idx_transactions_categorization_status ON transactions (categorization_status);
+				CREATE INDEX idx_transactions_categorization_source ON transactions (categorization_source);
+				CREATE INDEX idx_transactions_suggested_category_id ON transactions (suggested_category_id);
+				CREATE INDEX idx_transactions_booking_date ON transactions (booking_date);
+				CREATE UNIQUE INDEX transactions_import_fingerprint_unique ON transactions (import_fingerprint);
+
+				-- Step 7: drop the temporary mapping table.
+				DROP TABLE _category_id_map;
+			`);
+		},
+	},
+	{
+		id: '20260416_0018_recurring_costs_integer_id',
+		description: 'Migrate recurring_costs.id from TEXT (UUID) to INTEGER PRIMARY KEY AUTOINCREMENT',
+		up: (db) => {
+			db.exec(`
+				-- No other tables reference recurring_costs.id, so we don't need a
+				-- mapping table — just rebuild with an autoincrementing INTEGER id.
+				CREATE TABLE recurring_costs_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					category_id INTEGER NOT NULL REFERENCES budget_categories(id) ON DELETE CASCADE,
+					name TEXT NOT NULL,
+					amount NUMERIC NOT NULL,
+					period TEXT NOT NULL CHECK(period IN ('weekly', 'monthly', 'yearly')),
+					start_date TEXT,
+					end_date TEXT,
+					is_active INTEGER NOT NULL DEFAULT 1,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL,
+					is_essential INTEGER NOT NULL DEFAULT 0,
+					kind TEXT NOT NULL DEFAULT 'expense' CHECK(kind IN ('expense', 'investment'))
+				);
+				INSERT INTO recurring_costs_new (
+					category_id, name, amount, period, start_date, end_date,
+					is_active, created_at, updated_at, is_essential, kind
+				)
+				SELECT category_id, name, amount, period, start_date, end_date,
+					is_active, created_at, updated_at, is_essential, kind
+				FROM recurring_costs
+				ORDER BY created_at, id;
+				DROP TABLE recurring_costs;
+				ALTER TABLE recurring_costs_new RENAME TO recurring_costs;
+				CREATE INDEX idx_recurring_costs_category_id ON recurring_costs (category_id);
+				CREATE INDEX idx_recurring_costs_is_active ON recurring_costs (is_active);
+				CREATE INDEX idx_recurring_costs_kind ON recurring_costs (kind);
+			`);
+		},
+	},
+	{
+		id: '20260416_0019_drop_recurring_costs_is_active',
+		description: 'Drop unused is_active column and index from recurring_costs',
+		up: (db) => {
+			const columnRows = db.prepare(`PRAGMA table_info(recurring_costs)`).all() as Array<{
+				name: string;
+			}>;
+			const hasIsActive = columnRows.some((column) => column.name === 'is_active');
+			if (!hasIsActive) {
+				return;
+			}
+
+			db.exec(`
+				DROP INDEX IF EXISTS idx_recurring_costs_is_active;
+				ALTER TABLE recurring_costs DROP COLUMN is_active;
+			`);
+		},
+	},
+	{
+		id: '20260419_0020_planned_purchases_integer_id',
+		description:
+			'Migrate wishlist_categories.id and wishlist_items.id from TEXT (UUID) to INTEGER, and update referencing foreign keys',
+		up: (db) => {
+			db.exec(`
+				-- Mirrors migration 0017: defer_foreign_keys lets us rebuild parent +
+				-- children atomically inside the wrapping transaction.
+				PRAGMA defer_foreign_keys = ON;
+
+				-- Step 1: map old TEXT category id -> new INTEGER id. AUTOINCREMENT
+				-- keeps ids stable and monotonic across the rebuild.
+				CREATE TABLE _wishlist_category_id_map (
+					new_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					old_id TEXT NOT NULL UNIQUE
+				);
+				INSERT INTO _wishlist_category_id_map (old_id)
+				SELECT id FROM wishlist_categories ORDER BY created_at, id;
+
+				-- Step 2: rebuild wishlist_categories with INTEGER id.
+				CREATE TABLE wishlist_categories_new (
+					id INTEGER PRIMARY KEY,
+					name TEXT NOT NULL UNIQUE,
+					description TEXT,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO wishlist_categories_new (id, name, description, created_at, updated_at)
+				SELECT m.new_id, wc.name, wc.description, wc.created_at, wc.updated_at
+				FROM wishlist_categories wc
+				JOIN _wishlist_category_id_map m ON m.old_id = wc.id;
+				DROP TABLE wishlist_categories;
+				ALTER TABLE wishlist_categories_new RENAME TO wishlist_categories;
+
+				-- Step 3: rebuild wishlist_items with INTEGER PRIMARY KEY AUTOINCREMENT
+				-- and INTEGER category_id FK. linked_loan_id stays TEXT — loans.id
+				-- is still TEXT and isn't in scope for this migration.
+				CREATE TABLE wishlist_items_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					name TEXT NOT NULL,
+					target_amount NUMERIC NOT NULL,
+					target_amount_type TEXT NOT NULL DEFAULT 'exact' CHECK(target_amount_type IN ('exact', 'estimate')),
+					target_date TEXT,
+					priority INTEGER NOT NULL DEFAULT 5 CHECK(priority >= 0 AND priority <= 10),
+					category_id INTEGER REFERENCES wishlist_categories(id) ON DELETE SET NULL,
+					funding_strategy TEXT NOT NULL CHECK(funding_strategy IN ('save', 'loan', 'mixed', 'buy_outright')),
+					linked_loan_id TEXT REFERENCES loans(id) ON DELETE SET NULL,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					notes TEXT,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO wishlist_items_new (
+					name, target_amount, target_amount_type, target_date, priority,
+					category_id, funding_strategy, linked_loan_id, currency, notes,
+					created_at, updated_at
+				)
+				SELECT wi.name, wi.target_amount, wi.target_amount_type, wi.target_date, wi.priority,
+					m.new_id, wi.funding_strategy, wi.linked_loan_id, wi.currency, wi.notes,
+					wi.created_at, wi.updated_at
+				FROM wishlist_items wi
+				LEFT JOIN _wishlist_category_id_map m ON m.old_id = wi.category_id
+				ORDER BY wi.created_at, wi.id;
+				DROP TABLE wishlist_items;
+				ALTER TABLE wishlist_items_new RENAME TO wishlist_items;
+				CREATE INDEX idx_wishlist_priority ON wishlist_items (priority);
+				CREATE INDEX idx_wishlist_funding_strategy ON wishlist_items (funding_strategy);
+				CREATE INDEX idx_wishlist_linked_loan_id ON wishlist_items (linked_loan_id);
+				CREATE INDEX idx_wishlist_category_id ON wishlist_items (category_id);
+
+				-- Step 4: drop the mapping table.
+				DROP TABLE _wishlist_category_id_map;
+			`);
+		},
+	},
+	{
+		id: '20260424_0021_loans_integer_id',
+		description:
+			'Migrate loans.id from TEXT (UUID) to INTEGER, and flip wishlist_items.linked_loan_id to INTEGER alongside it',
+		up: (db) => {
+			db.exec(`
+				-- Mirrors migrations 0017 and 0020: defer FK checks so parent +
+				-- child rebuilds can happen atomically inside the wrapping txn.
+				PRAGMA defer_foreign_keys = ON;
+
+				-- Step 1: map old TEXT loan id -> new INTEGER id. AUTOINCREMENT
+				-- keeps ids stable and monotonic across the rebuild.
+				CREATE TABLE _loan_id_map (
+					new_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					old_id TEXT NOT NULL UNIQUE
+				);
+				INSERT INTO _loan_id_map (old_id)
+				SELECT id FROM loans ORDER BY created_at, id;
+
+				-- Step 2: rebuild loans with INTEGER PRIMARY KEY AUTOINCREMENT.
+				CREATE TABLE loans_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					direction TEXT NOT NULL CHECK(direction IN ('lent', 'borrowed')),
+					counterparty TEXT NOT NULL,
+					principal_amount NUMERIC NOT NULL,
+					outstanding_amount NUMERIC NOT NULL,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					issue_date TEXT NOT NULL,
+					due_date TEXT,
+					status TEXT NOT NULL CHECK(status IN ('open', 'paid', 'overdue')),
+					notes TEXT,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO loans_new (
+					id, direction, counterparty, principal_amount, outstanding_amount,
+					currency, issue_date, due_date, status, notes, created_at, updated_at
+				)
+				SELECT m.new_id, l.direction, l.counterparty, l.principal_amount, l.outstanding_amount,
+					l.currency, l.issue_date, l.due_date, l.status, l.notes, l.created_at, l.updated_at
+				FROM loans l
+				JOIN _loan_id_map m ON m.old_id = l.id;
+				DROP TABLE loans;
+				ALTER TABLE loans_new RENAME TO loans;
+				CREATE INDEX idx_loans_direction ON loans (direction);
+				CREATE INDEX idx_loans_status ON loans (status);
+				CREATE INDEX idx_loans_due_date ON loans (due_date);
+
+				-- Step 3: rebuild wishlist_items with INTEGER linked_loan_id
+				-- (nullable, SET NULL). LEFT JOIN so rows without a linked loan
+				-- survive. This is the only table that references loans.id.
+				CREATE TABLE wishlist_items_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					name TEXT NOT NULL,
+					target_amount NUMERIC NOT NULL,
+					target_amount_type TEXT NOT NULL DEFAULT 'exact' CHECK(target_amount_type IN ('exact', 'estimate')),
+					target_date TEXT,
+					priority INTEGER NOT NULL DEFAULT 5 CHECK(priority >= 0 AND priority <= 10),
+					category_id INTEGER REFERENCES wishlist_categories(id) ON DELETE SET NULL,
+					funding_strategy TEXT NOT NULL CHECK(funding_strategy IN ('save', 'loan', 'mixed', 'buy_outright')),
+					linked_loan_id INTEGER REFERENCES loans(id) ON DELETE SET NULL,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					notes TEXT,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO wishlist_items_new (
+					id, name, target_amount, target_amount_type, target_date, priority,
+					category_id, funding_strategy, linked_loan_id, currency, notes,
+					created_at, updated_at
+				)
+				SELECT wi.id, wi.name, wi.target_amount, wi.target_amount_type, wi.target_date, wi.priority,
+					wi.category_id, wi.funding_strategy, m.new_id, wi.currency, wi.notes,
+					wi.created_at, wi.updated_at
+				FROM wishlist_items wi
+				LEFT JOIN _loan_id_map m ON m.old_id = wi.linked_loan_id
+				ORDER BY wi.created_at, wi.id;
+				DROP TABLE wishlist_items;
+				ALTER TABLE wishlist_items_new RENAME TO wishlist_items;
+				CREATE INDEX idx_wishlist_priority ON wishlist_items (priority);
+				CREATE INDEX idx_wishlist_funding_strategy ON wishlist_items (funding_strategy);
+				CREATE INDEX idx_wishlist_linked_loan_id ON wishlist_items (linked_loan_id);
+				CREATE INDEX idx_wishlist_category_id ON wishlist_items (category_id);
+
+				-- Step 4: drop the mapping table.
+				DROP TABLE _loan_id_map;
+			`);
+		},
+	},
+	{
+		id: '20260424_0022_financial_profile_integer_id',
+		description:
+			'Migrate financial_profile.id from TEXT to INTEGER PRIMARY KEY AUTOINCREMENT',
+		up: (db) => {
+			db.exec(`
+				-- Singleton table — exactly one row in practice ('default'). No
+				-- other tables reference financial_profile.id, so we don't need a
+				-- mapping table; just rebuild and copy the single row over.
+				CREATE TABLE financial_profile_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					monthly_salary NUMERIC NOT NULL DEFAULT 40000,
+					salary_growth NUMERIC NOT NULL DEFAULT 6,
+					municipal_tax_rate NUMERIC NOT NULL DEFAULT 32.41,
+					savings_share_of_raise NUMERIC NOT NULL DEFAULT 50,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO financial_profile_new (
+					monthly_salary, salary_growth, municipal_tax_rate,
+					savings_share_of_raise, currency, created_at, updated_at
+				)
+				SELECT monthly_salary, salary_growth, municipal_tax_rate,
+					savings_share_of_raise, currency, created_at, updated_at
+				FROM financial_profile
+				ORDER BY created_at, id;
+				DROP TABLE financial_profile;
+				ALTER TABLE financial_profile_new RENAME TO financial_profile;
+			`);
+		},
+	},
 ];

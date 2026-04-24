@@ -89,14 +89,16 @@
 		width: 100%;
 		padding: 10px 14px;
 		padding-right: 48px;
-		background: var(--app-bg-input);
-		border: 1px solid var(--app-border);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
+		border: 1px solid var(--ds-glass-border);
 		border-radius: var(--app-radius-sm);
 		color: var(--app-text-primary);
 		font-size: 1rem;
 		font-family: var(--ds-font-mono);
 		font-weight: 500;
-		transition: border-color 0.2s, box-shadow 0.2s;
+		transition: border-color 0.16s var(--ds-ease), box-shadow 0.16s var(--ds-ease);
 		appearance: textfield;
 		-moz-appearance: textfield;
 	}

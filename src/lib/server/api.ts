@@ -4,25 +4,6 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 
 import { FinApi } from '$lib/api/definition';
-import { BudgetCategoriesRepository } from '$lib/server/budget/categories.repository';
-import {
-	createCategoryEffect,
-	deleteCategoryEffect,
-	listCategoriesEffect,
-	updateCategoryEffect,
-} from '$lib/server/budget/categories.service';
-import { BudgetRecurringCostsRepository } from '$lib/server/budget/costs.repository';
-import {
-	createRecurringCostEffect,
-	deleteRecurringCostEffect,
-	listRecurringCostsEffect,
-	updateRecurringCostEffect,
-} from '$lib/server/budget/costs.service';
-import { buildBudgetSummaryEffect } from '$lib/server/budget/summary.service';
-import {
-	getFinancialProfileEffect,
-	updateFinancialProfileEffect,
-} from '$lib/server/finance/service';
 import {
 	assignTransactionCategoryEffect,
 	listImportBatchesEffect,
@@ -43,80 +24,55 @@ import {
 	updateInvestmentAccountEffect,
 	updateInvestmentHoldingEffect,
 } from '$lib/server/investments/service';
-import {
-	createLoanEffect,
-	deleteLoanEffect,
-	listLoansEffect,
-	updateLoanEffect,
-} from '$lib/server/loans/service';
-import {
-	createWishlistCategoryEffect,
-	createWishlistItemEffect,
-	deleteWishlistCategoryEffect,
-	deleteWishlistItemEffect,
-	listWishlistCategoriesEffect,
-	listWishlistItemsEffect,
-	updateWishlistCategoryEffect,
-	updateWishlistItemEffect,
-} from '$lib/server/wishlist/service';
+// The `budget`, `wishlist`, `finance`, and `loans` API groups are now
+// served by the Rust backend (see `backend/src/routes/...`). The SvelteKit
+// proxy in `src/routes/api/[...path]/+server.ts` forwards their paths to
+// Rust before `handleApiRequest` runs, so the stub handlers below are
+// unreachable by design. They exist only to satisfy the FinApi type
+// contract (which still declares these groups for the typed client). If a
+// request ever reaches one it means the proxy regressed — fail loudly.
+const unreachable = (name: string) =>
+	Effect.die(
+		`Handler ${name} is served by the Rust backend; the SvelteKit proxy should have forwarded this request. Check src/routes/api/[...path]/+server.ts.`,
+	);
 
 const financeHandlers = HttpApiBuilder.group(FinApi, 'finance', (handlers) =>
 	handlers
-		.handle('getFinancialProfile', () => getFinancialProfileEffect())
-		.handle('updateFinancialProfile', ({ payload }) => updateFinancialProfileEffect(payload)),
+		.handle('getFinancialProfile', () => unreachable('getFinancialProfile'))
+		.handle('updateFinancialProfile', () => unreachable('updateFinancialProfile')),
 );
 
 const budgetHandlers = HttpApiBuilder.group(FinApi, 'budget', (handlers) =>
 	handlers
-		.handle('listBudgetCategories', () => listCategoriesEffect())
-		.handle('createBudgetCategory', ({ payload }) => createCategoryEffect(payload))
-		.handle('updateBudgetCategory', ({ path, payload }) =>
-			updateCategoryEffect(path.categoryId, payload),
-		)
-		.handle('deleteBudgetCategory', ({ path }) =>
-			deleteCategoryEffect(path.categoryId).pipe(Effect.asVoid),
-		)
-		.handle('listRecurringCosts', ({ urlParams }) => listRecurringCostsEffect(urlParams ?? {}))
-		.handle('createRecurringCost', ({ payload }) => createRecurringCostEffect(payload))
-		.handle('updateRecurringCost', ({ path, payload }) =>
-			updateRecurringCostEffect(path.costId, payload),
-		)
-		.handle('deleteRecurringCost', ({ path }) =>
-			deleteRecurringCostEffect(path.costId).pipe(Effect.asVoid),
-		)
-		.handle('getBudgetSummary', ({ urlParams }) => buildBudgetSummaryEffect(urlParams ?? {})),
-).pipe(
-	Layer.provide(
-		Layer.mergeAll(BudgetCategoriesRepository.Live, BudgetRecurringCostsRepository.Live),
-	),
+		.handle('listBudgetCategories', () => unreachable('listBudgetCategories'))
+		.handle('createBudgetCategory', () => unreachable('createBudgetCategory'))
+		.handle('updateBudgetCategory', () => unreachable('updateBudgetCategory'))
+		.handle('deleteBudgetCategory', () => unreachable('deleteBudgetCategory'))
+		.handle('listRecurringCosts', () => unreachable('listRecurringCosts'))
+		.handle('createRecurringCost', () => unreachable('createRecurringCost'))
+		.handle('updateRecurringCost', () => unreachable('updateRecurringCost'))
+		.handle('deleteRecurringCost', () => unreachable('deleteRecurringCost'))
+		.handle('getBudgetSummary', () => unreachable('getBudgetSummary')),
 );
 
 const loansHandlers = HttpApiBuilder.group(FinApi, 'loans', (handlers) =>
 	handlers
-		.handle('listLoans', ({ urlParams }) => listLoansEffect(urlParams ?? {}))
-		.handle('createLoan', ({ payload }) => createLoanEffect(payload))
-		.handle('updateLoan', ({ path, payload }) => updateLoanEffect(path.loanId, payload))
-		.handle('deleteLoan', ({ path }) => deleteLoanEffect(path.loanId).pipe(Effect.asVoid)),
+		.handle('listLoans', () => unreachable('listLoans'))
+		.handle('createLoan', () => unreachable('createLoan'))
+		.handle('updateLoan', () => unreachable('updateLoan'))
+		.handle('deleteLoan', () => unreachable('deleteLoan')),
 );
 
 const wishlistHandlers = HttpApiBuilder.group(FinApi, 'wishlist', (handlers) =>
 	handlers
-		.handle('listWishlistItems', ({ urlParams }) => listWishlistItemsEffect(urlParams ?? {}))
-		.handle('createWishlistItem', ({ payload }) => createWishlistItemEffect(payload))
-		.handle('updateWishlistItem', ({ path, payload }) =>
-			updateWishlistItemEffect(path.itemId, payload),
-		)
-		.handle('deleteWishlistItem', ({ path }) =>
-			deleteWishlistItemEffect(path.itemId).pipe(Effect.asVoid),
-		)
-		.handle('listWishlistCategories', () => listWishlistCategoriesEffect())
-		.handle('createWishlistCategory', ({ payload }) => createWishlistCategoryEffect(payload))
-		.handle('updateWishlistCategory', ({ path, payload }) =>
-			updateWishlistCategoryEffect(path.categoryId, payload),
-		)
-		.handle('deleteWishlistCategory', ({ path }) =>
-			deleteWishlistCategoryEffect(path.categoryId).pipe(Effect.asVoid),
-		),
+		.handle('listWishlistItems', () => unreachable('listWishlistItems'))
+		.handle('createWishlistItem', () => unreachable('createWishlistItem'))
+		.handle('updateWishlistItem', () => unreachable('updateWishlistItem'))
+		.handle('deleteWishlistItem', () => unreachable('deleteWishlistItem'))
+		.handle('listWishlistCategories', () => unreachable('listWishlistCategories'))
+		.handle('createWishlistCategory', () => unreachable('createWishlistCategory'))
+		.handle('updateWishlistCategory', () => unreachable('updateWishlistCategory'))
+		.handle('deleteWishlistCategory', () => unreachable('deleteWishlistCategory')),
 );
 
 const importsHandlers = HttpApiBuilder.group(FinApi, 'imports', (handlers) =>

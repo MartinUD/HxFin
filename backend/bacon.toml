@@ -1,0 +1,22 @@
+# Bacon config for the fin-backend axum server.
+# Run with: `bacon run` (or `bacon` and pick the job).
+# On file changes, bacon kills the server, rebuilds, and relaunches.
+
+default_job = "run"
+
+[jobs.check]
+command = ["cargo", "check", "--color", "always"]
+need_stdout = false
+
+[jobs.clippy]
+command = ["cargo", "clippy", "--color", "always"]
+need_stdout = false
+
+# Long-running: rebuild + relaunch the server on every source change.
+[jobs.run]
+command = ["cargo", "run", "--color", "always"]
+need_stdout = true
+allow_warnings = true
+background = false
+on_change_strategy = "kill_then_restart"
+kill = ["kill", "-s", "TERM"]

@@ -65,7 +65,6 @@ docs/
 - `period TEXT NOT NULL` (`weekly | monthly | yearly`)
 - `start_date TEXT`
 - `end_date TEXT`
-- `is_active INTEGER NOT NULL DEFAULT 1`
 - `created_at TEXT NOT NULL`
 - `updated_at TEXT NOT NULL`
 
@@ -105,21 +104,22 @@ Base path: `/api/budget`
 
 ### Recurring Costs
 
-1. `GET /costs?categoryId=<id>&includeInactive=true|false`
-- `includeInactive` defaults to `false`
+1. `GET /costs?categoryIds=<id>&categoryIds=<id>`
+- `categoryIds` is a repeatable query param; omit entirely for no filter.
 - Response: `{ "costs": RecurringCost[] }`
 
 2. `POST /costs`
 - Body:
 ```json
 {
-  "categoryId": "uuid",
+  "categoryId": 1,
   "name": "Rent",
   "amount": 1800,
   "period": "monthly",
+  "kind": "expense",
+  "isEssential": true,
   "startDate": "2026-01-01",
-  "endDate": null,
-  "isActive": true
+  "endDate": null
 }
 ```
 - Response: `{ "cost": RecurringCost }` (`201`)
@@ -128,8 +128,7 @@ Base path: `/api/budget`
 - Body (partial):
 ```json
 {
-  "amount": 1850,
-  "isActive": false
+  "amount": 1850
 }
 ```
 - Response: `{ "cost": RecurringCost }`
@@ -139,8 +138,7 @@ Base path: `/api/budget`
 
 ### Summary
 
-1. `GET /summary?includeInactive=true|false`
-- `includeInactive` defaults to `false`
+1. `GET /summary`
 - Response:
 ```json
 {
@@ -191,9 +189,10 @@ Used for totals:
   name: string;
   amount: number;
   period: "weekly" | "monthly" | "yearly";
+  kind: "expense" | "investment";
+  isEssential: boolean;
   startDate: string | null;
   endDate: string | null;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

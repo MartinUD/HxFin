@@ -9,18 +9,19 @@
 		ToolbarActions
 	} from '$lib/components/ui/toolbar-actions';
 	import type { BudgetCategory } from '$lib/schema/budget';
+	import type { CategoryFilter } from '../selectors';
 
 	interface Props {
 		categories: BudgetCategory[];
-		activeCostCount: number;
-		selectedCategoryFilter: string[];
+		costCount: number;
+		selectedCategoryFilter: CategoryFilter[];
 		onOpenCategoriesDialog: () => void;
 		onOpenAddCostDialog: () => void;
 	}
 
 	let {
 		categories,
-		activeCostCount,
+		costCount,
 		selectedCategoryFilter = $bindable(),
 		onOpenCategoriesDialog,
 		onOpenAddCostDialog,
@@ -30,14 +31,20 @@
 		{
 			value: 'all',
 			label: 'All',
-			meta: String(activeCostCount)
+			meta: String(costCount)
 		},
 		...categories.map((category) => ({
-			value: category.id,
+			value: String(category.id),
 			label: category.name,
 			dotColor: category.color ?? DEFAULT_COLOR
 		}))
 	]);
+
+	let segmentedValue = $derived(selectedCategoryFilter.map((value) => String(value)));
+
+	function parseFilterValue(value: string): CategoryFilter {
+		return value === 'all' ? 'all' : Number(value);
+	}
 
 	function handleCategoryFilterChange(nextValue: string | string[], changedValue: string): void {
 		const rawValues = Array.isArray(nextValue) ? nextValue : [nextValue];
@@ -48,7 +55,7 @@
 			return;
 		}
 
-		const withoutAll = uniqueValues.filter((value) => value !== 'all');
+		const withoutAll = uniqueValues.filter((value) => value !== 'all').map(parseFilterValue);
 		selectedCategoryFilter = withoutAll.length > 0 ? withoutAll : ['all'];
 	}
 </script>
@@ -57,7 +64,7 @@
 	{#if categories.length > 0}
 		<div class="budget-toolbar-filters">
 			<SegmentedControl
-				value={selectedCategoryFilter}
+				value={segmentedValue}
 				options={categoryOptions}
 				selectionMode="multiple"
 				variant="pills"

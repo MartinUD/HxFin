@@ -106,9 +106,7 @@
 		flex-direction: column;
 		border-right: 1px solid var(--ds-glass-border);
 		overflow: hidden;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.006)),
-			color-mix(in oklab, var(--ds-bg-1) 94%, rgba(12, 20, 14, 0.12));
+		background: transparent;
 	}
 
 	.settings-header {
@@ -118,16 +116,13 @@
 		padding: 0.7rem 1rem 0.55rem;
 		border-bottom: 1px solid var(--ds-glass-border);
 		flex-shrink: 0;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.008)),
-			color-mix(in oklab, var(--ds-glass-surface) 78%, transparent);
 	}
 
 	.settings-title {
 		font-family: var(--ds-font-display);
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--app-text-primary);
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--app-text-secondary);
 		letter-spacing: -0.01em;
 		margin: 0;
 	}

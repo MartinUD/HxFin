@@ -69,7 +69,6 @@
 		const border = styles.getPropertyValue('--app-border').trim() || '#2a2a2a';
 		const bgCard = styles.getPropertyValue('--app-bg-card').trim() || '#1a1a1a';
 		const accent = styles.getPropertyValue('--app-accent').trim() || '#22c55e';
-		const accentGlow = styles.getPropertyValue('--app-accent-glow').trim() || 'rgba(34,197,94,0.22)';
 		const info = styles.getPropertyValue('--app-cyan').trim() || '#06b6d4';
 
 		const labels = results.map((r) => `År ${r.year}`);
@@ -103,8 +102,8 @@
 						type: 'bar',
 						label: 'Startbelopp',
 						data: startCapitalData,
-						backgroundColor: accentGlow,
-						borderColor: accent,
+						backgroundColor: 'oklch(0.35 0.06 155)',
+						borderColor: 'transparent',
 						borderWidth: 0,
 						borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 3, bottomRight: 3 },
 						stack: 'stack',
@@ -114,8 +113,8 @@
 						type: 'bar',
 						label: 'Insättningar',
 						data: monthlyDepositsData,
-						backgroundColor: withAlpha(info, 0.58),
-						borderColor: info,
+						backgroundColor: 'oklch(0.55 0.14 152)',
+						borderColor: 'transparent',
 						borderWidth: 0,
 						borderRadius: 0,
 						stack: 'stack',
@@ -125,8 +124,8 @@
 						type: 'bar',
 						label: 'Avkastning (netto)',
 						data: netReturnsData,
-						backgroundColor: withAlpha(accent, 0.55),
-						borderColor: accent,
+						backgroundColor: 'oklch(0.78 0.2 149)',
+						borderColor: 'transparent',
 						borderWidth: 0,
 						borderRadius: { topLeft: 3, topRight: 3, bottomLeft: 0, bottomRight: 0 },
 						stack: 'stack',
@@ -238,8 +237,10 @@
 		width: 100%;
 		height: 100%;
 		padding: 16px;
-		background: var(--app-bg-card);
-		border: 1px solid var(--app-border);
-		border-radius: var(--app-radius);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+			color-mix(in oklab, var(--ds-glass-surface) 84%, rgba(12, 20, 14, 0.16));
+		border: 1px solid var(--ds-glass-border);
+		border-radius: var(--ds-radius);
 	}
 </style>

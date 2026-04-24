@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 data/budget.db \".schema categories\")",
+      "Bash(python -c \"import sqlite3; c=sqlite3.connect\\('data/budget.db'\\); [print\\(r[0]\\) for r in c.execute\\(\\\\\"SELECT sql FROM sqlite_master WHERE type='table' AND name LIKE '%categor%'\\\\\"\\)]\")"
+    ]
+  }
+}

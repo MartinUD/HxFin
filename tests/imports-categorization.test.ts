@@ -11,14 +11,13 @@ process.env.BUDGET_DB_PATH = join(tempDir, 'budget.db');
 
 const [
 	{ ensureSchema },
-	{ createCategory, listCategories },
 	{
 		importNordeaCsvWithDependencies,
 		assignTransactionCategoryEffect,
 		reprocessImportTransactionsWithDependencies,
 		suggestTransactionCategoryWithCodexWithDependencies,
 	},
-	{ listTransactionsByImportBatchId, listReviewTransactions, upsertMerchantCategoryRule },
+	{ listCategories, listTransactionsByImportBatchId, listReviewTransactions, upsertMerchantCategoryRule },
 	{ default: db },
 	{ findHeuristicCategoryMatch },
 	{
@@ -30,7 +29,6 @@ const [
 	{ parseBatchResponse },
 ] = await Promise.all([
 	import('../src/lib/server/schema.ts'),
-	import('../src/lib/server/budget/categories.repository.ts'),
 	import('../src/lib/server/imports/service.ts'),
 	import('../src/lib/server/imports/repository.ts'),
 	import('../src/lib/server/db.ts'),
@@ -38,6 +36,30 @@ const [
 	import('../src/lib/server/imports/codex-categorization.ts'),
 	import('../src/lib/server/imports/ai-categorization.ts'),
 ]);
+
+// Seeds a budget category row directly — the production write path lives in
+// the Rust backend now, so we no longer import it from TS. Inlined here
+// because only the tests still create categories in-process.
+function createCategory(input: {
+	name: string;
+	description: string | null;
+	color: string | null;
+}): { id: number; name: string } {
+	const timestamp = new Date().toISOString();
+	const result = db
+		.prepare(
+			`INSERT INTO budget_categories (name, description, color, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?)
+			 RETURNING id, name`,
+		)
+		.get(input.name, input.description, input.color, timestamp, timestamp) as
+		| { id: number; name: string }
+		| undefined;
+	if (!result) {
+		throw new Error('Failed to insert budget category');
+	}
+	return result;
+}
 
 function resetDatabase(): void {
 	ensureSchema();

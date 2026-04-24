@@ -16,23 +16,23 @@
 		UpdateRecurringCostInput,
 	} from '$lib/schema/budget';
 	import { createRecurringCost, updateRecurringCost } from '../api';
+	import type { CategoryFilter } from '../selectors';
 
 	interface Props {
 		categories: BudgetCategory[];
-		selectedCategoryFilter: string[];
+		selectedCategoryFilter: CategoryFilter[];
 		onSaved: () => void | Promise<void>;
 		onError: (message: string) => void;
 	}
 
 	interface CostForm {
-		id: string;
+		id: number | null;
 		name: string;
 		amount: number;
 		period: RecurrencePeriod;
 		kind: RecurringCostKind;
-		categoryId: string;
+		categoryId: number | null;
 		isEssential: boolean;
-		isActive: boolean;
 	}
 
 	let { categories, selectedCategoryFilter, onSaved, onError }: Props = $props();
@@ -46,16 +46,15 @@
 		categories.find((category) => category.id === form.categoryId)?.name ?? '',
 	);
 
-	function createEmptyForm(defaultCategoryId = ''): CostForm {
+	function createEmptyForm(defaultCategoryId: number | null = null): CostForm {
 		return {
-			id: '',
+			id: null,
 			name: '',
 			amount: 0,
 			period: 'monthly',
 			kind: 'expense',
 			categoryId: defaultCategoryId,
 			isEssential: false,
-			isActive: true,
 		};
 	}
 
@@ -68,7 +67,6 @@
 			kind: cost.kind,
 			categoryId: cost.categoryId,
 			isEssential: cost.kind === 'investment' ? false : cost.isEssential,
-			isActive: cost.isActive,
 		};
 	}
 
@@ -81,11 +79,15 @@
 	}
 
 	function isValid(nextForm: CostForm): boolean {
-		return nextForm.name.trim().length > 0 && nextForm.amount > 0 && nextForm.categoryId.length > 0;
+		return nextForm.name.trim().length > 0 && nextForm.amount > 0 && nextForm.categoryId !== null;
 	}
 
 	function toCreatePayload(nextForm: CostForm): CreateRecurringCostInput {
 		const normalized = normalizeForm(nextForm);
+
+		if (normalized.categoryId === null) {
+			throw new Error('categoryId is required');
+		}
 
 		return {
 			name: normalized.name,
@@ -96,12 +98,15 @@
 			isEssential: normalized.isEssential,
 			startDate: new Date().toISOString().split('T')[0],
 			endDate: null,
-			isActive: true,
 		};
 	}
 
 	function toUpdatePayload(nextForm: CostForm): UpdateRecurringCostInput {
 		const normalized = normalizeForm(nextForm);
+
+		if (normalized.categoryId === null) {
+			throw new Error('categoryId is required');
+		}
 
 		return {
 			name: normalized.name,
@@ -110,13 +115,14 @@
 			kind: normalized.kind,
 			categoryId: normalized.categoryId,
 			isEssential: normalized.isEssential,
-			isActive: normalized.isActive,
 		};
 	}
 
 	export function openAdd(): void {
-		const defaultCategoryId =
-			selectedCategoryFilter.find((categoryId) => categoryId !== 'all') ?? (categories[0]?.id ?? '');
+		const firstSelected = selectedCategoryFilter.find(
+			(categoryId): categoryId is number => categoryId !== 'all',
+		);
+		const defaultCategoryId = firstSelected ?? categories[0]?.id ?? null;
 		mode = 'add';
 		form = createEmptyForm(defaultCategoryId);
 		dialogOpen = true;
@@ -147,7 +153,7 @@
 		try {
 			if (mode === 'add') {
 				await createRecurringCost(fetch, toCreatePayload(normalized));
-			} else if (normalized.id) {
+			} else if (normalized.id !== null) {
 				await updateRecurringCost(fetch, normalized.id, toUpdatePayload(normalized));
 			}
 
@@ -241,9 +247,9 @@
 				<Label class="text-xs uppercase tracking-wide text-muted-foreground">Category</Label>
 				<Select.Root
 					type="single"
-					value={form.categoryId}
+					value={form.categoryId === null ? '' : String(form.categoryId)}
 					onValueChange={(value: string) => {
-						form.categoryId = value ?? '';
+						form.categoryId = value ? Number(value) : null;
 					}}
 				>
 					<Select.Trigger class="w-full bg-muted border-border text-foreground">
@@ -251,7 +257,7 @@
 					</Select.Trigger>
 					<Select.Content class="bg-card border-border">
 						{#each categories as category (category.id)}
-							<Select.Item value={category.id} class="text-foreground cursor-pointer">
+							<Select.Item value={String(category.id)} class="text-foreground cursor-pointer">
 								<span class="flex items-center gap-2">
 									<span
 										class="w-2.5 h-2.5 rounded-full flex-shrink-0"
