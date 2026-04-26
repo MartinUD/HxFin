@@ -9,7 +9,6 @@ use axum::{
 // way stock axum Query does; axum_extra for consistency with the sibling
 // modules (costs.rs, items.rs, loans.rs) that already use it.
 use axum_extra::extract::Query;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Sqlite};
 
@@ -321,7 +320,7 @@ async fn create(
     // INSERT. We INSERT then re-read via fetch_holding so the response
     // includes the snapshot-derived columns (which RETURNING on INSERT
     // can't produce — the correlated subqueries live in SELECT).
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO investment_holdings \
          (account_id, name, allocation_percent, current_value, units, \
@@ -375,7 +374,7 @@ async fn update(
 
     ensure_account_exists(&db, n.account_id).await?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let result = sqlx::query(
         "UPDATE investment_holdings \
          SET account_id = ?, name = ?, allocation_percent = ?, current_value = ?, \

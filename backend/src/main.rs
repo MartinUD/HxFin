@@ -1,6 +1,7 @@
 mod db;
 mod errors;
 mod routes;
+mod time;
 
 use std::env;
 

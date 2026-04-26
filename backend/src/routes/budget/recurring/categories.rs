@@ -5,7 +5,6 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -64,7 +63,7 @@ async fn create(
     }
 
     // id is INTEGER PRIMARY KEY — SQLite auto-assigns it when we omit it from the INSERT.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let category: Category = sqlx::query_as(
         "INSERT INTO budget_categories (name, description, color, created_at, updated_at) \
          VALUES (?, ?, ?, ?, ?) \
@@ -93,7 +92,7 @@ async fn update(
 
     // Update all columns and return the updated row in one round-trip.
     // fetch_optional gives us None if no row matched the id, which we map to 404.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let category: Category = sqlx::query_as(
         "UPDATE budget_categories \
          SET name = ?, description = ?, color = ?, updated_at = ? \

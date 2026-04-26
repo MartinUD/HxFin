@@ -1,12 +1,12 @@
 //! CRUD for planned-purchase categories.
 //!
 //! Distinct from `budget_categories` (used by recurring costs) — purchases
-//! have their own table. Table is still named `wishlist_categories`; rename
-//! is tracked separately (see MartinUD/HxFin#6).
+//! have their own table (`purchase_categories`).
 //!
 //! Frontend contract lives in `src/lib/schema/wishlist.ts`
 //! (`WishlistCategorySchema`, `CreateWishlistCategoryInputSchema`,
-//! `UpdateWishlistCategoryInputSchema`).
+//! `UpdateWishlistCategoryInputSchema`). The `wishlist` label is retained
+//! frontend-side as the typed-client group name.
 
 use crate::{db::Db, errors::AppError};
 use axum::{
@@ -15,7 +15,6 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::error::ErrorKind;
 
@@ -76,9 +75,10 @@ fn validate_name(raw: &str) -> Result<&str, AppError> {
     Ok(name)
 }
 
-// `wishlist_categories.name` carries a UNIQUE constraint. Translate sqlx's
-// constraint-violation error into a 400 Validation so the frontend toast
-// path stays consistent with the other validation errors.
+// `purchase_categories.name` carries a UNIQUE constraint with `COLLATE NOCASE`,
+// so this also catches case-variant duplicates ("Kitchen" vs "kitchen").
+// Translate sqlx's constraint-violation error into a 400 Validation so the
+// frontend toast path stays consistent with the other validation errors.
 fn map_insert_error(err: sqlx::Error, name: &str) -> AppError {
     match err {
         sqlx::Error::Database(dbe) if dbe.kind() == ErrorKind::UniqueViolation => {
@@ -96,7 +96,7 @@ fn map_insert_error(err: sqlx::Error, name: &str) -> AppError {
 // the order the dialog in PlannedPurchasesWorkspace.svelte renders them in.
 async fn list(State(db): State<Db>) -> Result<Json<Vec<PurchaseCategory>>, AppError> {
     let sql =
-        format!("SELECT {SELECT_COLUMNS} FROM wishlist_categories ORDER BY name COLLATE NOCASE");
+        format!("SELECT {SELECT_COLUMNS} FROM purchase_categories ORDER BY name COLLATE NOCASE");
     let categories: Vec<PurchaseCategory> = sqlx::query_as(&sql).fetch_all(&db).await?;
 
     Ok(Json(categories))
@@ -110,9 +110,9 @@ async fn create(
     let name = validate_name(&payload.name)?;
 
     // id is INTEGER PRIMARY KEY — SQLite assigns it on INSERT.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
-        "INSERT INTO wishlist_categories (name, description, created_at, updated_at) \
+        "INSERT INTO purchase_categories (name, description, created_at, updated_at) \
          VALUES (?, ?, ?, ?) \
          RETURNING {SELECT_COLUMNS}"
     );
@@ -139,9 +139,9 @@ async fn update(
 ) -> Result<Json<PurchaseCategory>, AppError> {
     let name = validate_name(&payload.name)?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
-        "UPDATE wishlist_categories \
+        "UPDATE purchase_categories \
          SET name = ?, description = ?, updated_at = ? \
          WHERE id = ? \
          RETURNING {SELECT_COLUMNS}"
@@ -161,10 +161,10 @@ async fn update(
 
 // DELETE /budget/planned-purchases/categories/{id}
 //
-// `wishlist_items.category_id` has `ON DELETE SET NULL`, so linked purchases
+// `planned_purchases.category_id` has `ON DELETE SET NULL`, so linked purchases
 // survive the deletion with a null category — the DB handles cleanup for us.
 async fn remove(State(db): State<Db>, Path(id): Path<i64>) -> Result<StatusCode, AppError> {
-    let result = sqlx::query("DELETE FROM wishlist_categories WHERE id = ?")
+    let result = sqlx::query("DELETE FROM purchase_categories WHERE id = ?")
         .bind(id)
         .execute(&db)
         .await?;

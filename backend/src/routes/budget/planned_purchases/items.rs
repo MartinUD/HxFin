@@ -1,8 +1,6 @@
 //! CRUD for planned-purchase items.
 //!
-//! Table is still named `wishlist_items`; rename tracked in MartinUD/HxFin#6.
-//! `id`, `category_id`, and `linked_loan_id` are all INTEGER — `id`/`category_id`
-//! since migration 0020, `linked_loan_id` since migration 0021.
+//! `id`, `category_id`, and `linked_loan_id` are all INTEGER.
 //!
 //! Frontend contract: `src/lib/schema/wishlist.ts` (`WishlistItemSchema`,
 //! `CreateWishlistItemInputSchema`, `UpdateWishlistItemInputSchema`,
@@ -18,7 +16,6 @@ use axum::{
 // serde_html_form-backed Query handles optional/missing params the same way
 // stock axum Query does; we use axum_extra here for consistency with costs.rs.
 use axum_extra::extract::Query;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Sqlite};
 
@@ -178,7 +175,7 @@ fn validate(payload: &PurchasePayload) -> Result<Normalized<'_>, AppError> {
 // resource name instead of a generic FK-violation 500. The DB's FK enforcement
 // (PRAGMA foreign_keys = ON) still acts as a last line of defense.
 async fn ensure_category_exists(db: &Db, id: i64) -> Result<(), AppError> {
-    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM wishlist_categories WHERE id = ?")
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM purchase_categories WHERE id = ?")
         .bind(id)
         .fetch_optional(db)
         .await?
@@ -225,7 +222,7 @@ async fn list(
     Query(query): Query<ListQuery>,
 ) -> Result<Json<Vec<PlannedPurchase>>, AppError> {
     let mut qb: QueryBuilder<Sqlite> =
-        QueryBuilder::new(format!("SELECT {SELECT_COLUMNS} FROM wishlist_items"));
+        QueryBuilder::new(format!("SELECT {SELECT_COLUMNS} FROM planned_purchases"));
 
     if let Some(strategy) = query.funding_strategy.as_deref() {
         // Bogus values simply return an empty list — no need to validate a
@@ -251,9 +248,9 @@ async fn create(
     // id is INTEGER PRIMARY KEY AUTOINCREMENT — SQLite assigns it on INSERT.
     // currency hardcoded to 'SEK' to satisfy the NOT NULL DEFAULT column;
     // it isn't part of the frontend schema.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
-        "INSERT INTO wishlist_items \
+        "INSERT INTO planned_purchases \
          (name, target_amount, target_amount_type, target_date, priority, \
           category_id, funding_strategy, linked_loan_id, currency, notes, \
           created_at, updated_at) \
@@ -290,9 +287,9 @@ async fn update(
     let n = validate(&payload)?;
     ensure_fk_targets_exist(&db, &n).await?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
-        "UPDATE wishlist_items \
+        "UPDATE planned_purchases \
          SET name = ?, target_amount = ?, target_amount_type = ?, target_date = ?, \
              priority = ?, category_id = ?, funding_strategy = ?, linked_loan_id = ?, \
              notes = ?, updated_at = ? \
@@ -321,7 +318,7 @@ async fn update(
 
 // DELETE /budget/planned-purchases/{id}
 async fn remove(State(db): State<Db>, Path(id): Path<i64>) -> Result<StatusCode, AppError> {
-    let result = sqlx::query("DELETE FROM wishlist_items WHERE id = ?")
+    let result = sqlx::query("DELETE FROM planned_purchases WHERE id = ?")
         .bind(id)
         .execute(&db)
         .await?;

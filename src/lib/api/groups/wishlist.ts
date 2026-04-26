@@ -15,10 +15,9 @@ import {
 
 // Paths match the Rust handlers in
 // `backend/src/routes/budget/planned_purchases/{items,categories}.rs`.
-// The SvelteKit proxy forwards every `/api/budget/*` request to Rust, so
-// the TS stub handlers in `$lib/server/api.ts` are unreachable by design.
+// The SvelteKit proxy forwards every `/api/budget/*` request to Rust.
 // Path params use `NumberFromString` because the Rust backend uses integer
-// ids (see migration 0020).
+// ids (see Rust migration that introduced integer IDs).
 export const wishlistApiGroup = HttpApiGroup.make('wishlist')
 	.add(
 		HttpApiEndpoint.get('listWishlistItems', '/budget/planned-purchases')

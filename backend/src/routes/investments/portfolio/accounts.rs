@@ -5,7 +5,6 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 // Defaults applied on create when the frontend omits these fields. Mirrors
@@ -120,7 +119,7 @@ async fn create(
     );
 
     // id is INTEGER PRIMARY KEY AUTOINCREMENT — SQLite assigns it on INSERT.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "INSERT INTO investment_accounts \
          (name, institution, currency, total_value, created_at, updated_at) \
@@ -155,7 +154,7 @@ async fn update(
         payload.total_value,
     );
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "UPDATE investment_accounts \
          SET name = ?, institution = ?, currency = ?, total_value = ?, \

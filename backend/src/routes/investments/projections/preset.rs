@@ -24,7 +24,6 @@ use axum::{
     routing::{get, put},
     Json, Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 // Mirror the initial $state(...) values in +page.svelte. Kept here (and in
@@ -112,7 +111,7 @@ async fn ensure_preset(db: &Db) -> Result<ProjectionPreset, AppError> {
         return Ok(preset);
     }
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let insert_sql = format!(
         "INSERT INTO projection_preset \
          (start_capital, monthly_saving, monthly_salary, salary_growth, \
@@ -179,7 +178,7 @@ async fn update_preset(
     // without a separate bootstrap step. Same trick `update_profile` uses.
     let existing = ensure_preset(&db).await?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "UPDATE projection_preset \
          SET start_capital = COALESCE(?, start_capital), \

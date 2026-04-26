@@ -6,7 +6,7 @@ import {
 	buildSummaryByCategory,
 	filterCostsByCategory,
 	getFilteredMonthlyTotal,
-} from '../src/routes/budget/selectors.ts';
+} from '../src/lib/features/budget/selectors.ts';
 
 const categories = [
 	{

@@ -18,7 +18,6 @@ use axum::{
     routing::{get, put},
     Json, Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 // Lazy-seed defaults for the singleton row. Mirrors
@@ -97,7 +96,7 @@ async fn ensure_profile(db: &Db) -> Result<FinancialProfile, AppError> {
 
     // First run — lazy-seed with the defaults. Matches the TS
     // `ensureProfileExists()` helper.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let insert_sql = format!(
         "INSERT INTO financial_profile \
          (monthly_salary, salary_growth, municipal_tax_rate, savings_share_of_raise, \
@@ -201,7 +200,7 @@ async fn update_profile(
     // seed step.
     let existing = ensure_profile(&db).await?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "UPDATE financial_profile \
          SET monthly_salary = COALESCE(?, monthly_salary), \

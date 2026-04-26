@@ -9,7 +9,6 @@ use axum::{
 // repeated keys like `?categoryIds=1&categoryIds=2` into a Vec. The stock
 // axum Query uses serde_urlencoded and would only keep the last value.
 use axum_extra::extract::Query;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Sqlite};
 
@@ -118,7 +117,7 @@ async fn create(
     };
 
     // id is INTEGER PRIMARY KEY AUTOINCREMENT — SQLite assigns it on INSERT.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
 
     let sql = format!(
         "INSERT INTO recurring_costs \
@@ -159,7 +158,7 @@ async fn update(
     } else {
         payload.is_essential
     };
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
 
     let sql = format!(
         "UPDATE recurring_costs \

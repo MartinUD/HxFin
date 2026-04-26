@@ -5,7 +5,7 @@ import {
 	formatLocalizedNumber,
 	formatSekAmount,
 	formatSekCurrency,
-} from '../src/lib/finance/format.ts';
+} from '../src/lib/shared/format.ts';
 
 function normalizeSpaces(value: string): string {
 	return value.replace(/\s/g, ' ');

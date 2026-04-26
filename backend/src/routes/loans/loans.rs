@@ -1,8 +1,7 @@
 //! CRUD for loans (money lent and borrowed).
 //!
-//! `loans.id` has been `INTEGER PRIMARY KEY AUTOINCREMENT` since migration
-//! 0021; `wishlist_items.linked_loan_id` was flipped to INTEGER in the same
-//! migration, so no other table references `loans.id` as TEXT anymore.
+//! `loans.id` is `INTEGER PRIMARY KEY AUTOINCREMENT` and the only other table
+//! that references it is `planned_purchases.linked_loan_id` (also INTEGER).
 //!
 //! Frontend contract: `src/lib/schema/loans.ts` (`LoanSchema`,
 //! `CreateLoanInputSchema`, `UpdateLoanInputSchema`, `ListLoansQuerySchema`).
@@ -18,7 +17,6 @@ use axum::{
 // way stock axum Query does; axum_extra for consistency with the sibling
 // modules (costs.rs, items.rs) that already use it.
 use axum_extra::extract::Query;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{QueryBuilder, Sqlite};
 
@@ -286,7 +284,7 @@ async fn create(
     )?;
 
     // id is INTEGER PRIMARY KEY AUTOINCREMENT — SQLite assigns it on INSERT.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "INSERT INTO loans \
          (direction, counterparty, principal_amount, outstanding_amount, \
@@ -332,7 +330,7 @@ async fn update(
         payload.notes.as_deref(),
     )?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "UPDATE loans \
          SET direction = ?, counterparty = ?, principal_amount = ?, \
@@ -362,7 +360,7 @@ async fn update(
 
 // DELETE /loans/{id}
 //
-// `wishlist_items.linked_loan_id` has `ON DELETE SET NULL`, so any linked
+// `planned_purchases.linked_loan_id` has `ON DELETE SET NULL`, so any linked
 // planned purchase survives the deletion with a null reference — the DB
 // handles cleanup for us.
 async fn remove(State(db): State<Db>, Path(id): Path<i64>) -> Result<StatusCode, AppError> {

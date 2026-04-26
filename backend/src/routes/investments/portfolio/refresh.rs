@@ -12,7 +12,6 @@
 //!
 use crate::{db::Db, errors::AppError};
 use axum::{extract::State, routing::post, Json, Router};
-use chrono::Utc;
 use serde::Serialize;
 
 use crate::routes::investments::portfolio::{
@@ -187,7 +186,7 @@ async fn refresh_holding(
         .units
         .unwrap_or_else(|| round_to(holding.current_value / quote.unit_price, 6));
     let current_value = round_to(quote.unit_price * units, 2);
-    let synced_at = Utc::now().to_rfc3339();
+    let synced_at = crate::time::iso_timestamp_now();
 
     let mut tx = db.begin().await?;
     sqlx::query(

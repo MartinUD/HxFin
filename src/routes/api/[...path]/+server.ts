@@ -1,4 +1,3 @@
-import { handleApiRequest } from '$lib/server/api';
 import type { RequestHandler } from './$types';
 
 const RUST_BACKEND = 'http://localhost:3001';
@@ -20,7 +19,7 @@ const handler: RequestHandler = async ({ request, params }) => {
 		const url = new URL(request.url);
 		return fetch(`${RUST_BACKEND}/api/${path}${url.search}`, request);
 	}
-	return handleApiRequest(request);
+	return new Response(`No backend route for /api/${path}`, { status: 404 });
 };
 
 export const GET = handler;

@@ -10,9 +10,6 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:biome": "biome check .",
-    "db:generate": "drizzle-kit generate",
-    "db:pull": "drizzle-kit pull",
-    "db:studio": "drizzle-kit studio",
     "fix:biome": "biome check --write .",
     "format": "biome format --write .",
     "lint": "biome lint ."
@@ -29,8 +26,6 @@
     "@types/node": "^25.2.3",
     "bits-ui": "^2.16.1",
     "clsx": "^2.1.1",
-    "drizzle-kit": "^0.31.9",
-    "drizzle-orm": "^0.45.1",
     "svelte": "5.49.2",
     "svelte-check": "^4.0.0",
     "tailwind-merge": "^3.5.0",
@@ -42,7 +37,6 @@
   },
   "dependencies": {
     "@effect/platform": "^0.94.5",
-    "@effect/platform-bun": "^0.87.1",
     "chart.js": "^4.5.1",
     "effect": "^3.19.19",
     "zod": "^4.3.6"

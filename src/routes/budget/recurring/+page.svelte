@@ -1,5 +1,5 @@
 <script lang="ts">
-	import RecurringBudgetWorkspace from '$lib/features/budget/RecurringBudgetWorkspace.svelte';
+	import RecurringBudgetWorkspace from '$lib/features/budget/recurring/RecurringWorkspace.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

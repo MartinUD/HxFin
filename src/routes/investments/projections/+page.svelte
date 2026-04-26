@@ -1,5 +1,5 @@
 <script lang="ts">
-	import InvestmentsWorkspace from '$lib/features/investments/InvestmentsWorkspace.svelte';
+	import ProjectionsWorkspace from '$lib/features/investments/projections/ProjectionsWorkspace.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -9,8 +9,7 @@
 	<title>Investments / Projections — HxFin</title>
 </svelte:head>
 
-<InvestmentsWorkspace
-	view="projections"
+<ProjectionsWorkspace
 	data={{
 		profile: data.profile,
 		accounts: data.accounts.slice(),
