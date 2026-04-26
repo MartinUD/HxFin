@@ -60,7 +60,7 @@
 
 	let holdingDialogOpen = $state(false);
 	let holdingDialogMode = $state<'add' | 'edit'>('add');
-	let editingHoldingId = $state('');
+	let editingHoldingId = $state<number | null>(null);
 	let dialogHoldingName = $state('');
 	let dialogHoldingValue = $state<number>(0);
 	let dialogHoldingAllocation = $state<number>(0);
@@ -89,7 +89,7 @@
 	type HoldingSortKey = 'name' | 'platform' | 'value' | 'weight' | 'target' | 'change';
 	type AllocationRow = InvestmentHolding & { actualPercent: number };
 
-	let defaultAccountId = $derived(accounts[0]?.id ?? '');
+	let defaultAccountId = $derived(accounts[0]?.id ?? null);
 	let portfolioHoldings = $derived(
 		holdings
 			.slice()
@@ -246,7 +246,7 @@
 			? Math.max(...portfolioHoldings.map((h) => h.sortOrder)) + 1
 			: 0;
 		holdingDialogMode = 'add';
-		editingHoldingId = '';
+		editingHoldingId = null;
 		dialogHoldingName = '';
 		dialogHoldingValue = 0;
 		dialogHoldingAllocation = 0;
@@ -292,10 +292,11 @@
 						}
 					})
 				);
-			} else if (editingHoldingId) {
+			} else if (editingHoldingId !== null) {
+				const holdingId = editingHoldingId;
 				await apiRun((client) =>
 					client.investments.updateInvestmentHolding({
-						path: { holdingId: editingHoldingId },
+						path: { holdingId },
 						payload: {
 							accountId: defaultAccountId,
 							name: dialogHoldingName.trim(),
@@ -314,7 +315,7 @@
 		}, 'Failed to save holding');
 	}
 
-	async function handleDeleteHolding(holdingId: string): Promise<void> {
+	async function handleDeleteHolding(holdingId: number): Promise<void> {
 		if (!confirm('Delete this holding?')) return;
 		await runPortfolioMutation(async () => {
 			await apiRun((client) =>

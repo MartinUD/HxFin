@@ -17,14 +17,14 @@ use axum::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::{error::ErrorKind, Row};
+use sqlx::error::ErrorKind;
 
 // Mirrors the client-side limit in `CreateWishlistCategoryInputSchema`
 // (src/lib/schema/wishlist.ts) — enforced here too so a malformed request
 // that skips the frontend validation still gets a clean 400.
 const MAX_NAME_LENGTH: usize = 80;
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct PurchaseCategory {
     pub id: i64,
@@ -58,16 +58,6 @@ pub fn router() -> Router<Db> {
 }
 
 const SELECT_COLUMNS: &str = "id, name, description, created_at, updated_at";
-
-fn row_to_category(row: sqlx::sqlite::SqliteRow) -> Result<PurchaseCategory, sqlx::Error> {
-    Ok(PurchaseCategory {
-        id: row.try_get("id")?,
-        name: row.try_get("name")?,
-        description: row.try_get("description")?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
-}
 
 // Validation shared by `create` and `update`. Returns the trimmed name so
 // the caller binds the exact string that passed validation.
@@ -105,15 +95,9 @@ fn map_insert_error(err: sqlx::Error, name: &str) -> AppError {
 // Returns every purchase category, alphabetically (case-insensitive) to match
 // the order the dialog in PlannedPurchasesWorkspace.svelte renders them in.
 async fn list(State(db): State<Db>) -> Result<Json<Vec<PurchaseCategory>>, AppError> {
-    let sql = format!(
-        "SELECT {SELECT_COLUMNS} FROM wishlist_categories ORDER BY name COLLATE NOCASE"
-    );
-    let rows = sqlx::query(&sql).fetch_all(&db).await?;
-
-    let categories = rows
-        .into_iter()
-        .map(row_to_category)
-        .collect::<Result<Vec<_>, sqlx::Error>>()?;
+    let sql =
+        format!("SELECT {SELECT_COLUMNS} FROM wishlist_categories ORDER BY name COLLATE NOCASE");
+    let categories: Vec<PurchaseCategory> = sqlx::query_as(&sql).fetch_all(&db).await?;
 
     Ok(Json(categories))
 }
@@ -132,7 +116,7 @@ async fn create(
          VALUES (?, ?, ?, ?) \
          RETURNING {SELECT_COLUMNS}"
     );
-    let row = sqlx::query(&sql)
+    let category: PurchaseCategory = sqlx::query_as(&sql)
         .bind(name)
         .bind(&payload.description)
         .bind(&now)
@@ -141,7 +125,7 @@ async fn create(
         .await
         .map_err(|e| map_insert_error(e, name))?;
 
-    Ok((StatusCode::CREATED, Json(row_to_category(row)?)))
+    Ok((StatusCode::CREATED, Json(category)))
 }
 
 // PATCH /budget/planned-purchases/categories/{id}
@@ -162,7 +146,7 @@ async fn update(
          WHERE id = ? \
          RETURNING {SELECT_COLUMNS}"
     );
-    let row = sqlx::query(&sql)
+    let category: PurchaseCategory = sqlx::query_as(&sql)
         .bind(name)
         .bind(&payload.description)
         .bind(&now)
@@ -172,7 +156,7 @@ async fn update(
         .map_err(|e| map_insert_error(e, name))?
         .ok_or_else(|| AppError::NotFound(format!("Purchase category {id} not found")))?;
 
-    Ok(Json(row_to_category(row)?))
+    Ok(Json(category))
 }
 
 // DELETE /budget/planned-purchases/categories/{id}
@@ -186,7 +170,9 @@ async fn remove(State(db): State<Db>, Path(id): Path<i64>) -> Result<StatusCode,
         .await?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound(format!("Purchase category {id} not found")));
+        return Err(AppError::NotFound(format!(
+            "Purchase category {id} not found"
+        )));
     }
 
     Ok(StatusCode::NO_CONTENT)

@@ -2,8 +2,8 @@ pub mod income;
 pub mod planned_purchases;
 pub mod recurring;
 
-use axum::Router;
 use crate::db::Db;
+use axum::Router;
 
 pub fn router() -> Router<Db> {
     Router::new()

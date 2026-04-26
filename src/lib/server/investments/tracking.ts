@@ -1,3 +1,7 @@
+// @ts-nocheck
+// Deprecated: tracked investment refresh is now implemented in Rust at
+// `backend/src/routes/investments/portfolio/refresh.rs` and
+// `backend/src/routes/investments/portfolio/tracking`.
 import {
 	createInvestmentHoldingSnapshot,
 	listInvestmentHoldings,

@@ -1,3 +1,7 @@
+// @ts-nocheck
+// Deprecated: investment portfolio persistence is now served by the Rust backend
+// in `backend/src/routes/investments/portfolio`. This file remains only as a
+// reference for the old SvelteKit implementation.
 import { randomUUID } from 'node:crypto';
 
 import { and, asc, eq } from 'drizzle-orm';

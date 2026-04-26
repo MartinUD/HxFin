@@ -2,8 +2,8 @@ pub mod categories;
 pub mod costs;
 pub mod summary;
 
-use axum::Router;
 use crate::db::Db;
+use axum::Router;
 
 // Routes for the recurring-costs feature. Mounted at `/budget` by the
 // parent module so URLs stay flat: `/budget/categories`, `/budget/costs`,

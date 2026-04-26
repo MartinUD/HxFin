@@ -1,3 +1,7 @@
+// @ts-nocheck
+// Deprecated: investment portfolio API handlers are now forwarded to the Rust
+// backend by `src/routes/api/[...path]/+server.ts`. Kept as historical reference
+// for the old SvelteKit implementation.
 import * as Effect from 'effect/Effect';
 
 import { notFoundError, persistenceError, validationError } from '$lib/effect/errors';

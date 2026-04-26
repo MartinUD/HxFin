@@ -8,7 +8,7 @@ const RUST_BACKEND = 'http://localhost:3001';
 // underneath one (e.g. `GET /api/loans/42`, `PATCH /api/budget/costs/3`).
 // Listing bare segments rather than prefix strings prevents a match like
 // `loansomething/...` falling through accidentally.
-const RUST_SEGMENTS = ['budget', 'loans'];
+const RUST_SEGMENTS = ['budget', 'loans', 'investments'];
 
 function goesToRust(path: string): boolean {
 	return RUST_SEGMENTS.some((segment) => path === segment || path.startsWith(`${segment}/`));

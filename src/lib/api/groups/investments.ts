@@ -28,14 +28,14 @@ export const investmentsApiGroup = HttpApiGroup.make('investments')
 	.add(
 		HttpApiEndpoint.patch(
 			'updateInvestmentAccount',
-		)`/investments/accounts/${HttpApiSchema.param('accountId', Schema.String)}`
+		)`/investments/accounts/${HttpApiSchema.param('accountId', Schema.NumberFromString)}`
 			.setPayload(UpdateInvestmentAccountInputSchema)
 			.addSuccess(InvestmentAccountSchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteInvestmentAccount',
-		)`/investments/accounts/${HttpApiSchema.param('accountId', Schema.String)}`.addSuccess(
+		)`/investments/accounts/${HttpApiSchema.param('accountId', Schema.NumberFromString)}`.addSuccess(
 			HttpApiSchema.NoContent,
 		),
 	)
@@ -52,14 +52,14 @@ export const investmentsApiGroup = HttpApiGroup.make('investments')
 	.add(
 		HttpApiEndpoint.patch(
 			'updateInvestmentHolding',
-		)`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.String)}`
+		)`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.NumberFromString)}`
 			.setPayload(UpdateInvestmentHoldingInputSchema)
 			.addSuccess(InvestmentHoldingSchema),
 	)
 	.add(
 		HttpApiEndpoint.del(
 			'deleteInvestmentHolding',
-		)`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.String)}`.addSuccess(
+		)`/investments/holdings/${HttpApiSchema.param('holdingId', Schema.NumberFromString)}`.addSuccess(
 			HttpApiSchema.NoContent,
 		),
 	)

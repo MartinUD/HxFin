@@ -20,7 +20,7 @@ use axum::{
 use axum_extra::extract::Query;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::{QueryBuilder, Row, Sqlite};
+use sqlx::{QueryBuilder, Sqlite};
 
 // Mirrors the frontend literal unions. The DB also has matching CHECK
 // constraints; the explicit lists here let us return a clean 400 before
@@ -39,7 +39,7 @@ const CURRENCY_CODE_LENGTH: usize = 3;
 const DEFAULT_STATUS: &str = "open";
 const DEFAULT_CURRENCY: &str = "SEK";
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Loan {
     pub id: i64,
@@ -113,23 +113,6 @@ const SELECT_COLUMNS: &str = "id, direction, counterparty, \
      CAST(principal_amount AS REAL) AS principal_amount, \
      CAST(outstanding_amount AS REAL) AS outstanding_amount, \
      currency, issue_date, due_date, status, notes, created_at, updated_at";
-
-fn row_to_loan(row: sqlx::sqlite::SqliteRow) -> Result<Loan, sqlx::Error> {
-    Ok(Loan {
-        id: row.try_get("id")?,
-        direction: row.try_get("direction")?,
-        counterparty: row.try_get("counterparty")?,
-        principal_amount: row.try_get("principal_amount")?,
-        outstanding_amount: row.try_get("outstanding_amount")?,
-        currency: row.try_get("currency")?,
-        issue_date: row.try_get("issue_date")?,
-        due_date: row.try_get("due_date")?,
-        status: row.try_get("status")?,
-        notes: row.try_get("notes")?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
-}
 
 // Trimmed, defaults-applied, owned-currency form of the payload. We
 // validate once and bind the normalized values so the DB row matches what
@@ -274,11 +257,7 @@ async fn list(
 
     qb.push(" ORDER BY due_date IS NULL ASC, due_date ASC, created_at DESC");
 
-    let rows = qb.build().fetch_all(&db).await?;
-    let loans = rows
-        .into_iter()
-        .map(row_to_loan)
-        .collect::<Result<Vec<_>, sqlx::Error>>()?;
+    let loans: Vec<Loan> = qb.build_query_as().fetch_all(&db).await?;
 
     Ok(Json(loans))
 }
@@ -315,7 +294,7 @@ async fn create(
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
          RETURNING {SELECT_COLUMNS}"
     );
-    let row = sqlx::query(&sql)
+    let loan: Loan = sqlx::query_as(&sql)
         .bind(n.direction)
         .bind(n.counterparty)
         .bind(n.principal_amount)
@@ -330,7 +309,7 @@ async fn create(
         .fetch_one(&db)
         .await?;
 
-    Ok((StatusCode::CREATED, Json(row_to_loan(row)?)))
+    Ok((StatusCode::CREATED, Json(loan)))
 }
 
 // PATCH /loans/{id}
@@ -362,7 +341,7 @@ async fn update(
          WHERE id = ? \
          RETURNING {SELECT_COLUMNS}"
     );
-    let row = sqlx::query(&sql)
+    let loan: Loan = sqlx::query_as(&sql)
         .bind(n.direction)
         .bind(n.counterparty)
         .bind(n.principal_amount)
@@ -378,7 +357,7 @@ async fn update(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Loan {id} not found")))?;
 
-    Ok(Json(row_to_loan(row)?))
+    Ok(Json(loan))
 }
 
 // DELETE /loans/{id}

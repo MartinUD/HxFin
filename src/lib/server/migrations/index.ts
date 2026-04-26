@@ -1612,4 +1612,148 @@ export const migrations: Migration[] = [
 			`);
 		},
 	},
+	{
+		id: '20260424_0023_projection_preset',
+		description:
+			'Create projection_preset singleton for the investments→projections FIRE calculator',
+		up: (db) => {
+			db.exec(`
+				-- Singleton table. The UI historically cached these knobs in
+				-- localStorage under 'fin:investments:projection-preset' — this
+				-- moves them server-side so they survive across devices.
+				--
+				-- Defaults mirror the initial $state(...) values in
+				-- src/routes/investments/+page.svelte. Salary/tax knobs are
+				-- duplicated with financial_profile deliberately (same shape as
+				-- the old localStorage blob); the projections form saves them
+				-- together, and splitting means a second PUT on every save.
+				CREATE TABLE IF NOT EXISTS projection_preset (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					start_capital NUMERIC NOT NULL DEFAULT 100000,
+					monthly_saving NUMERIC NOT NULL DEFAULT 5000,
+					monthly_salary NUMERIC NOT NULL DEFAULT 40000,
+					salary_growth NUMERIC NOT NULL DEFAULT 6,
+					kommunalskatt NUMERIC NOT NULL DEFAULT 32.41,
+					savings_share_of_raise NUMERIC NOT NULL DEFAULT 50,
+					avg_return NUMERIC NOT NULL DEFAULT 8,
+					leverage NUMERIC NOT NULL DEFAULT 0,
+					years INTEGER NOT NULL DEFAULT 20,
+					withdrawal_rate NUMERIC NOT NULL DEFAULT 4,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+			`);
+		},
+	},
+	{
+		id: '20260424_0024_investments_integer_id',
+		description:
+			'Migrate investment_accounts.id, investment_holdings.id, and investment_holding_snapshots.id from TEXT (UUID/seed strings) to INTEGER, and flip their FKs alongside',
+		up: (db) => {
+			db.exec(`
+				-- Mirrors migrations 0017/0020/0021: defer FK checks so the three
+				-- parent/child rebuilds happen atomically inside the wrapping txn.
+				PRAGMA defer_foreign_keys = ON;
+
+				-- Step 1: map old TEXT ids -> new INTEGER ids for accounts and
+				-- holdings. Snapshots get a fresh INTEGER PK (no other table
+				-- references them) so no map table is needed for them.
+				CREATE TABLE _investment_account_id_map (
+					new_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					old_id TEXT NOT NULL UNIQUE
+				);
+				INSERT INTO _investment_account_id_map (old_id)
+				SELECT id FROM investment_accounts ORDER BY created_at, id;
+
+				CREATE TABLE _investment_holding_id_map (
+					new_id INTEGER PRIMARY KEY AUTOINCREMENT,
+					old_id TEXT NOT NULL UNIQUE
+				);
+				INSERT INTO _investment_holding_id_map (old_id)
+				SELECT id FROM investment_holdings ORDER BY created_at, id;
+
+				-- Step 2: rebuild investment_accounts with INTEGER PK.
+				CREATE TABLE investment_accounts_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					name TEXT NOT NULL,
+					institution TEXT,
+					currency TEXT NOT NULL DEFAULT 'SEK',
+					total_value NUMERIC NOT NULL,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL
+				);
+				INSERT INTO investment_accounts_new (
+					id, name, institution, currency, total_value, created_at, updated_at
+				)
+				SELECT m.new_id, a.name, a.institution, a.currency, a.total_value,
+					a.created_at, a.updated_at
+				FROM investment_accounts a
+				JOIN _investment_account_id_map m ON m.old_id = a.id;
+				DROP TABLE investment_accounts;
+				ALTER TABLE investment_accounts_new RENAME TO investment_accounts;
+
+				-- Step 3: rebuild investment_holdings with INTEGER PK + INTEGER
+				-- account_id FK. Tracker/snapshot columns (added in 0009) are
+				-- carried over as-is.
+				CREATE TABLE investment_holdings_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					account_id INTEGER NOT NULL REFERENCES investment_accounts(id) ON DELETE CASCADE,
+					name TEXT NOT NULL,
+					allocation_percent NUMERIC NOT NULL,
+					current_value NUMERIC NOT NULL,
+					sort_order INTEGER NOT NULL DEFAULT 0,
+					created_at TEXT NOT NULL,
+					updated_at TEXT NOT NULL,
+					units NUMERIC,
+					latest_unit_price NUMERIC,
+					tracker_source TEXT NOT NULL DEFAULT 'manual' CHECK(tracker_source IN ('manual', 'nordea', 'avanza')),
+					tracker_url TEXT,
+					latest_price_date TEXT,
+					last_synced_at TEXT
+				);
+				INSERT INTO investment_holdings_new (
+					id, account_id, name, allocation_percent, current_value, sort_order,
+					created_at, updated_at, units, latest_unit_price, tracker_source,
+					tracker_url, latest_price_date, last_synced_at
+				)
+				SELECT hm.new_id, am.new_id, h.name, h.allocation_percent, h.current_value,
+					h.sort_order, h.created_at, h.updated_at, h.units, h.latest_unit_price,
+					h.tracker_source, h.tracker_url, h.latest_price_date, h.last_synced_at
+				FROM investment_holdings h
+				JOIN _investment_holding_id_map hm ON hm.old_id = h.id
+				JOIN _investment_account_id_map am ON am.old_id = h.account_id;
+				DROP TABLE investment_holdings;
+				ALTER TABLE investment_holdings_new RENAME TO investment_holdings;
+				CREATE INDEX idx_investment_holdings_account_id
+					ON investment_holdings (account_id);
+
+				-- Step 4: rebuild investment_holding_snapshots with INTEGER PK +
+				-- INTEGER holding_id FK. The old TEXT snapshot ids aren't referenced
+				-- anywhere, so we don't carry them over.
+				CREATE TABLE investment_holding_snapshots_new (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					holding_id INTEGER NOT NULL REFERENCES investment_holdings(id) ON DELETE CASCADE,
+					current_value NUMERIC NOT NULL,
+					unit_price NUMERIC,
+					units NUMERIC,
+					captured_at TEXT NOT NULL
+				);
+				INSERT INTO investment_holding_snapshots_new (
+					holding_id, current_value, unit_price, units, captured_at
+				)
+				SELECT hm.new_id, s.current_value, s.unit_price, s.units, s.captured_at
+				FROM investment_holding_snapshots s
+				JOIN _investment_holding_id_map hm ON hm.old_id = s.holding_id
+				ORDER BY s.captured_at, s.id;
+				DROP TABLE investment_holding_snapshots;
+				ALTER TABLE investment_holding_snapshots_new RENAME TO investment_holding_snapshots;
+				CREATE INDEX idx_investment_holding_snapshots_holding_id
+					ON investment_holding_snapshots (holding_id, captured_at DESC);
+
+				-- Step 5: drop the map tables.
+				DROP TABLE _investment_account_id_map;
+				DROP TABLE _investment_holding_id_map;
+			`);
+		},
+	},
 ];

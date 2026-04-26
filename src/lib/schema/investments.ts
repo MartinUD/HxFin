@@ -16,7 +16,7 @@ export const InvestmentTrackerSourceSchema = Schema.Literal('manual', 'nordea', 
 export type InvestmentTrackerSource = Schema.Schema.Type<typeof InvestmentTrackerSourceSchema>;
 
 export const InvestmentAccountSchema = Schema.Struct({
-	id: Schema.String,
+	id: Schema.Number,
 	name: Schema.String,
 	institution: NullableStringSchema,
 	currency: CurrencySchema,
@@ -28,8 +28,8 @@ export const InvestmentAccountSchema = Schema.Struct({
 export type InvestmentAccount = Schema.Schema.Type<typeof InvestmentAccountSchema>;
 
 export const InvestmentHoldingSchema = Schema.Struct({
-	id: Schema.String,
-	accountId: Schema.String,
+	id: Schema.Number,
+	accountId: Schema.Number,
 	name: Schema.String,
 	allocationPercent: PercentageSchema,
 	currentValue: PositiveAmountSchema,
@@ -60,10 +60,10 @@ export type CreateInvestmentAccountInput = Schema.Schema.Type<
 >;
 
 export const UpdateInvestmentAccountInputSchema = Schema.Struct({
-	name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
-	institution: Schema.optional(NullableStringSchema),
-	currency: Schema.optional(CurrencySchema),
-	totalValue: Schema.optional(PositiveAmountSchema),
+	name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+	institution: NullableStringSchema,
+	currency: CurrencySchema,
+	totalValue: PositiveAmountSchema,
 });
 
 export type UpdateInvestmentAccountInput = Schema.Schema.Type<
@@ -71,7 +71,7 @@ export type UpdateInvestmentAccountInput = Schema.Schema.Type<
 >;
 
 export const CreateInvestmentHoldingInputSchema = Schema.Struct({
-	accountId: Schema.String.pipe(Schema.minLength(1)),
+	accountId: Schema.Number,
 	name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
 	allocationPercent: PercentageSchema,
 	currentValue: PositiveAmountSchema,
@@ -87,17 +87,17 @@ export type CreateInvestmentHoldingInput = Schema.Schema.Type<
 >;
 
 export const UpdateInvestmentHoldingInputSchema = Schema.Struct({
-	accountId: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
-	name: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
-	allocationPercent: Schema.optional(PercentageSchema),
-	currentValue: Schema.optional(PositiveAmountSchema),
-	units: Schema.optional(NullableNumberSchema),
+	accountId: Schema.Number,
+	name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
+	allocationPercent: PercentageSchema,
+	currentValue: PositiveAmountSchema,
+	units: NullableNumberSchema,
 	latestUnitPrice: Schema.optional(NullableNumberSchema),
-	trackerSource: Schema.optional(InvestmentTrackerSourceSchema),
-	trackerUrl: Schema.optional(NullableStringSchema),
+	trackerSource: InvestmentTrackerSourceSchema,
+	trackerUrl: NullableStringSchema,
 	latestPriceDate: Schema.optional(NullableIsoDateSchema),
 	lastSyncedAt: Schema.optional(NullableStringSchema),
-	sortOrder: Schema.optional(SortOrderSchema),
+	sortOrder: SortOrderSchema,
 });
 
 export type UpdateInvestmentHoldingInput = Schema.Schema.Type<
@@ -105,7 +105,7 @@ export type UpdateInvestmentHoldingInput = Schema.Schema.Type<
 >;
 
 export const ListInvestmentHoldingsQuerySchema = Schema.Struct({
-	accountId: Schema.optional(Schema.String.pipe(Schema.minLength(1))),
+	accountId: Schema.optional(Schema.NumberFromString),
 });
 
 export type ListInvestmentHoldingsQuery = Schema.Schema.Type<
@@ -113,7 +113,7 @@ export type ListInvestmentHoldingsQuery = Schema.Schema.Type<
 >;
 
 export const InvestmentRefreshOutcomeSchema = Schema.Struct({
-	holdingId: Schema.String,
+	holdingId: Schema.Number,
 	name: Schema.String,
 	status: Schema.Literal('refreshed', 'skipped', 'failed'),
 	message: NullableStringSchema,

@@ -1,8 +1,8 @@
 pub mod categories;
 pub mod items;
 
-use axum::Router;
 use crate::db::Db;
+use axum::Router;
 
 // Routes for the planned-purchases feature (formerly "wishlist").
 // Mounted by the parent at `/budget`, so paths resolve to:

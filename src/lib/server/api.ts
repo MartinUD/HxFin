@@ -13,18 +13,7 @@ import {
 	suggestTransactionCategoryWithAiEffect,
 	uploadImportCsvEffect,
 } from '$lib/server/imports/service';
-import {
-	createInvestmentAccountEffect,
-	createInvestmentHoldingEffect,
-	deleteInvestmentAccountEffect,
-	deleteInvestmentHoldingEffect,
-	listInvestmentAccountsEffect,
-	listInvestmentHoldingsEffect,
-	refreshTrackedInvestmentHoldingsEffect,
-	updateInvestmentAccountEffect,
-	updateInvestmentHoldingEffect,
-} from '$lib/server/investments/service';
-// The `budget`, `wishlist`, `finance`, and `loans` API groups are now
+// The `budget`, `wishlist`, `finance`, `loans`, and `investments` API groups are now
 // served by the Rust backend (see `backend/src/routes/...`). The SvelteKit
 // proxy in `src/routes/api/[...path]/+server.ts` forwards their paths to
 // Rust before `handleApiRequest` runs, so the stub handlers below are
@@ -98,25 +87,17 @@ const importsHandlers = HttpApiBuilder.group(FinApi, 'imports', (handlers) =>
 
 const investmentsHandlers = HttpApiBuilder.group(FinApi, 'investments', (handlers) =>
 	handlers
-		.handle('listInvestmentAccounts', () => listInvestmentAccountsEffect())
-		.handle('createInvestmentAccount', ({ payload }) => createInvestmentAccountEffect(payload))
-		.handle('updateInvestmentAccount', ({ path, payload }) =>
-			updateInvestmentAccountEffect(path.accountId, payload),
-		)
-		.handle('deleteInvestmentAccount', ({ path }) =>
-			deleteInvestmentAccountEffect(path.accountId).pipe(Effect.asVoid),
-		)
-		.handle('listInvestmentHoldings', ({ urlParams }) =>
-			listInvestmentHoldingsEffect(urlParams ?? {}),
-		)
-		.handle('createInvestmentHolding', ({ payload }) => createInvestmentHoldingEffect(payload))
-		.handle('updateInvestmentHolding', ({ path, payload }) =>
-			updateInvestmentHoldingEffect(path.holdingId, payload),
-		)
-		.handle('deleteInvestmentHolding', ({ path }) =>
-			deleteInvestmentHoldingEffect(path.holdingId).pipe(Effect.asVoid),
-		)
-		.handle('refreshTrackedInvestmentHoldings', () => refreshTrackedInvestmentHoldingsEffect()),
+		.handle('listInvestmentAccounts', () => unreachable('listInvestmentAccounts'))
+		.handle('createInvestmentAccount', () => unreachable('createInvestmentAccount'))
+		.handle('updateInvestmentAccount', () => unreachable('updateInvestmentAccount'))
+		.handle('deleteInvestmentAccount', () => unreachable('deleteInvestmentAccount'))
+		.handle('listInvestmentHoldings', () => unreachable('listInvestmentHoldings'))
+		.handle('createInvestmentHolding', () => unreachable('createInvestmentHolding'))
+		.handle('updateInvestmentHolding', () => unreachable('updateInvestmentHolding'))
+		.handle('deleteInvestmentHolding', () => unreachable('deleteInvestmentHolding'))
+		.handle('refreshTrackedInvestmentHoldings', () =>
+			unreachable('refreshTrackedInvestmentHoldings'),
+		),
 );
 
 const handlerLayer = Layer.mergeAll(

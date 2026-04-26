@@ -7,7 +7,6 @@ use axum::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 
 #[derive(Deserialize)]
 pub struct CreateCategory {
@@ -23,7 +22,7 @@ pub struct UpdateCategory {
     color: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Category {
     id: i64,
@@ -44,27 +43,13 @@ pub fn router() -> Router<Db> {
 
 async fn list(State(db): State<Db>) -> Result<Json<Vec<Category>>, AppError> {
     // Return all categories, alphabetically (case-insensitive).
-    let rows = sqlx::query(
+    let categories: Vec<Category> = sqlx::query_as(
         "SELECT id, name, description, color, created_at, updated_at \
          FROM budget_categories \
          ORDER BY name COLLATE NOCASE",
     )
     .fetch_all(&db)
     .await?;
-
-    let categories = rows
-        .into_iter()
-        .map(|row| {
-            Ok(Category {
-                id: row.try_get("id")?,
-                name: row.try_get("name")?,
-                description: row.try_get("description")?,
-                color: row.try_get("color")?,
-                created_at: row.try_get("created_at")?,
-                updated_at: row.try_get("updated_at")?,
-            })
-        })
-        .collect::<Result<Vec<_>, sqlx::Error>>()?;
 
     Ok(Json(categories))
 }
@@ -80,7 +65,7 @@ async fn create(
 
     // id is INTEGER PRIMARY KEY — SQLite auto-assigns it when we omit it from the INSERT.
     let now = Utc::now().to_rfc3339();
-    let row = sqlx::query(
+    let category: Category = sqlx::query_as(
         "INSERT INTO budget_categories (name, description, color, created_at, updated_at) \
          VALUES (?, ?, ?, ?, ?) \
          RETURNING id, name, description, color, created_at, updated_at",
@@ -93,17 +78,7 @@ async fn create(
     .fetch_one(&db)
     .await?;
 
-    Ok((
-        StatusCode::CREATED,
-        Json(Category {
-            id: row.try_get("id")?,
-            name: row.try_get("name")?,
-            description: row.try_get("description")?,
-            color: row.try_get("color")?,
-            created_at: row.try_get("created_at")?,
-            updated_at: row.try_get("updated_at")?,
-        }),
-    ))
+    Ok((StatusCode::CREATED, Json(category)))
 }
 
 async fn update(
@@ -119,7 +94,7 @@ async fn update(
     // Update all columns and return the updated row in one round-trip.
     // fetch_optional gives us None if no row matched the id, which we map to 404.
     let now = Utc::now().to_rfc3339();
-    let row = sqlx::query(
+    let category: Category = sqlx::query_as(
         "UPDATE budget_categories \
          SET name = ?, description = ?, color = ?, updated_at = ? \
          WHERE id = ? \
@@ -134,14 +109,7 @@ async fn update(
     .await?
     .ok_or_else(|| AppError::NotFound(format!("Category {id} not found")))?;
 
-    Ok(Json(Category {
-        id: row.try_get("id")?,
-        name: row.try_get("name")?,
-        description: row.try_get("description")?,
-        color: row.try_get("color")?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    }))
+    Ok(Json(category))
 }
 
 async fn remove(State(db): State<Db>, Path(id): Path<i64>) -> Result<StatusCode, AppError> {
