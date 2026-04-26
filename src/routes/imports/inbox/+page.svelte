@@ -1,18 +1,19 @@
-<script lang="ts">
-	import ImportsInboxWorkspace from '$lib/features/imports/ImportsInboxWorkspace.svelte';
-	import type { PageData } from './$types';
-
-	let { data }: { data: PageData } = $props();
-</script>
-
 <svelte:head>
 	<title>Imports / Inbox — HxFin</title>
 </svelte:head>
 
-<ImportsInboxWorkspace
-	data={{
-		categories: data.categories.slice(),
-		batches: data.batches.slice(),
-		reviewTransactions: data.reviewTransactions.slice()
-	}}
-/>
+<div class="app-page placeholder-page">
+	<section class="section-hero">
+		<span class="section-kicker">Reserved Route</span>
+		<h1 class="app-page-title">/imports/inbox</h1>
+		<p class="section-lead">
+			Awaiting reimplementation against the Rust backend.
+		</p>
+	</section>
+</div>
+
+<style>
+	.placeholder-page {
+		gap: 14px;
+	}
+</style>

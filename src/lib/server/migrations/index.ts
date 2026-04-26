@@ -1756,4 +1756,17 @@ export const migrations: Migration[] = [
 			`);
 		},
 	},
+	{
+		id: '20260426_0025_drop_imports_tables',
+		description:
+			'Drop transaction-imports tables (import_batches, transactions, merchant_category_rules, merchant_category_codex_cache) ahead of the Rust rewrite',
+		up: (db) => {
+			db.exec(`
+				DROP TABLE IF EXISTS transactions;
+				DROP TABLE IF EXISTS merchant_category_codex_cache;
+				DROP TABLE IF EXISTS merchant_category_rules;
+				DROP TABLE IF EXISTS import_batches;
+			`);
+		},
+	},
 ];

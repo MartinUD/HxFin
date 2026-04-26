@@ -4,15 +4,6 @@ import * as Effect from 'effect/Effect';
 import * as Layer from 'effect/Layer';
 
 import { FinApi } from '$lib/api/definition';
-import {
-	assignTransactionCategoryEffect,
-	listImportBatchesEffect,
-	listImportTransactionsEffect,
-	listReviewTransactionsEffect,
-	reprocessImportTransactionsEffect,
-	suggestTransactionCategoryWithAiEffect,
-	uploadImportCsvEffect,
-} from '$lib/server/imports/service';
 // The `budget`, `wishlist`, `finance`, `loans`, and `investments` API groups are now
 // served by the Rust backend (see `backend/src/routes/...`). The SvelteKit
 // proxy in `src/routes/api/[...path]/+server.ts` forwards their paths to
@@ -64,27 +55,6 @@ const wishlistHandlers = HttpApiBuilder.group(FinApi, 'wishlist', (handlers) =>
 		.handle('deleteWishlistCategory', () => unreachable('deleteWishlistCategory')),
 );
 
-const importsHandlers = HttpApiBuilder.group(FinApi, 'imports', (handlers) =>
-	handlers
-		.handle('listImportBatches', ({ urlParams }) => listImportBatchesEffect(urlParams ?? {}))
-		.handle('listImportTransactions', ({ urlParams }) =>
-			listImportTransactionsEffect(urlParams ?? {}),
-		)
-		.handle('listReviewTransactions', ({ urlParams }) =>
-			listReviewTransactionsEffect(urlParams ?? {}),
-		)
-		.handle('uploadImportCsv', ({ payload }) => uploadImportCsvEffect(payload))
-		.handle('reprocessImportTransactions', ({ payload }) =>
-			reprocessImportTransactionsEffect(payload),
-		)
-		.handle('suggestImportTransactionCategoryWithAi', ({ path, payload }) =>
-			suggestTransactionCategoryWithAiEffect(path.transactionId, payload),
-		)
-		.handle('assignImportTransactionCategory', ({ path, payload }) =>
-			assignTransactionCategoryEffect(path.transactionId, payload),
-		),
-);
-
 const investmentsHandlers = HttpApiBuilder.group(FinApi, 'investments', (handlers) =>
 	handlers
 		.handle('listInvestmentAccounts', () => unreachable('listInvestmentAccounts'))
@@ -105,7 +75,6 @@ const handlerLayer = Layer.mergeAll(
 	budgetHandlers,
 	loansHandlers,
 	wishlistHandlers,
-	importsHandlers,
 	investmentsHandlers,
 );
 
