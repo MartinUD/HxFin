@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { fly, slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { primaryNavigation } from '$lib/navigation';
+	import { primaryNavigation } from '$lib/shared/navigation';
 
 	let { children } = $props();
 

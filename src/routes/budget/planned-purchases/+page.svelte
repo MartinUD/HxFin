@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PlannedPurchasesWorkspace from '$lib/features/budget/PlannedPurchasesWorkspace.svelte';
+	import PlannedPurchasesWorkspace from '$lib/features/budget/planned-purchases/PlannedPurchasesWorkspace.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { roundToCurrencyCents, toMonthlyAmount } from '../src/lib/finance/recurrence.ts';
+import { roundToCurrencyCents, toMonthlyAmount } from '../src/lib/shared/recurrence.ts';
 
 describe('toMonthlyAmount', () => {
 	it('converts weekly to monthly using 52/12', () => {

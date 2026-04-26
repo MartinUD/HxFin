@@ -1,11 +1,30 @@
 use crate::{db::Db, errors::AppError};
-use axum::{
-    extract::State,
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::State, routing::get, Json, Router};
 use serde::Serialize;
-use sqlx::Row;
+
+// Internal FromRow shapes used only by `get_summary`. Kept private — the
+// public response types are `BudgetSummary` / `BudgetSummaryCategory`
+// further down.
+#[derive(sqlx::FromRow)]
+struct CategoryRow {
+    id: i64,
+    name: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct CostRow {
+    category_id: i64,
+    amount: f64,
+    period: String,
+    kind: String,
+    is_essential: bool,
+}
+
+#[derive(sqlx::FromRow)]
+struct ProfileRow {
+    monthly_salary: f64,
+    municipal_tax_rate: f64,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,13 +95,9 @@ fn jobbskatteavdrag(taxable: f64, kommunalskatt: f64) -> f64 {
     } else if taxable <= 3.24 * PBB {
         0.91 * PBB * rate + (taxable - 0.91 * PBB) * 0.332
     } else if taxable <= 8.08 * PBB {
-        0.91 * PBB * rate
-            + (3.24 * PBB - 0.91 * PBB) * 0.332
-            + (taxable - 3.24 * PBB) * 0.111
+        0.91 * PBB * rate + (3.24 * PBB - 0.91 * PBB) * 0.332 + (taxable - 3.24 * PBB) * 0.111
     } else {
-        0.91 * PBB * rate
-            + (3.24 * PBB - 0.91 * PBB) * 0.332
-            + (8.08 * PBB - 3.24 * PBB) * 0.111
+        0.91 * PBB * rate + (3.24 * PBB - 0.91 * PBB) * 0.332 + (8.08 * PBB - 3.24 * PBB) * 0.111
     }
 }
 
@@ -91,7 +106,8 @@ fn calculate_net_monthly(gross_monthly: f64, kommunalskatt: f64) -> f64 {
     let taxable = (gross_yearly - grundavdrag(gross_yearly)).max(0.0);
     let kommunal_tax = taxable * (kommunalskatt / 100.0);
     let statlig_tax = (gross_yearly - STATLIG_BREAKPOINT_YEARLY).max(0.0) * (STATLIG_RATE / 100.0);
-    let total_tax_yearly = (kommunal_tax + statlig_tax - jobbskatteavdrag(taxable, kommunalskatt)).max(0.0);
+    let total_tax_yearly =
+        (kommunal_tax + statlig_tax - jobbskatteavdrag(taxable, kommunalskatt)).max(0.0);
     // Match TS: netMonthly = gross - Math.round(totalTaxMonthly).
     let total_tax_monthly = (total_tax_yearly / 12.0).round();
     gross_monthly - total_tax_monthly
@@ -100,20 +116,18 @@ fn calculate_net_monthly(gross_monthly: f64, kommunalskatt: f64) -> f64 {
 // GET /budget/summary
 async fn get_summary(State(db): State<Db>) -> Result<Json<BudgetSummary>, AppError> {
     // Load categories (id → name) for the breakdown labels.
-    let category_rows = sqlx::query("SELECT id, name FROM budget_categories")
+    let category_rows: Vec<CategoryRow> = sqlx::query_as("SELECT id, name FROM budget_categories")
         .fetch_all(&db)
         .await?;
     let mut category_name_by_id: std::collections::HashMap<i64, String> =
         std::collections::HashMap::with_capacity(category_rows.len());
-    for row in &category_rows {
-        let id: i64 = row.try_get("id")?;
-        let name: String = row.try_get("name")?;
-        category_name_by_id.insert(id, name);
+    for row in category_rows {
+        category_name_by_id.insert(row.id, row.name);
     }
 
     // CAST AS REAL because the NUMERIC columns can be stored as INTEGER by
     // SQLite (dynamic typing) and sqlx refuses to decode those into f64.
-    let cost_rows = sqlx::query(
+    let cost_rows: Vec<CostRow> = sqlx::query_as(
         "SELECT category_id, CAST(amount AS REAL) AS amount, period, kind, is_essential \
          FROM recurring_costs",
     )
@@ -121,7 +135,7 @@ async fn get_summary(State(db): State<Db>) -> Result<Json<BudgetSummary>, AppErr
     .await?;
 
     // Load the (single-row) financial profile for the tax calc.
-    let profile_row = sqlx::query(
+    let profile_row: Option<ProfileRow> = sqlx::query_as(
         "SELECT CAST(monthly_salary AS REAL) AS monthly_salary, \
          CAST(municipal_tax_rate AS REAL) AS municipal_tax_rate \
          FROM financial_profile LIMIT 1",
@@ -129,10 +143,7 @@ async fn get_summary(State(db): State<Db>) -> Result<Json<BudgetSummary>, AppErr
     .fetch_optional(&db)
     .await?;
     let (monthly_salary, municipal_tax_rate) = match profile_row {
-        Some(row) => (
-            row.try_get::<f64, _>("monthly_salary")?,
-            row.try_get::<f64, _>("municipal_tax_rate")?,
-        ),
+        Some(p) => (p.monthly_salary, p.municipal_tax_rate),
         // No profile row yet — treat as zero income so the page still renders.
         None => (0.0, 32.41),
     };
@@ -144,19 +155,13 @@ async fn get_summary(State(db): State<Db>) -> Result<Json<BudgetSummary>, AppErr
     let mut monthly_non_essential = 0.0_f64;
     let mut monthly_investing = 0.0_f64;
 
-    for row in &cost_rows {
-        let category_id: i64 = row.try_get("category_id")?;
-        let amount: f64 = row.try_get("amount")?;
-        let period: String = row.try_get("period")?;
-        let kind: String = row.try_get("kind")?;
-        let is_essential: bool = row.try_get("is_essential")?;
+    for cost in &cost_rows {
+        let monthly = to_monthly_amount(cost.amount, &cost.period);
+        *monthly_by_category.entry(cost.category_id).or_insert(0.0) += monthly;
 
-        let monthly = to_monthly_amount(amount, &period);
-        *monthly_by_category.entry(category_id).or_insert(0.0) += monthly;
-
-        if kind == "investment" {
+        if cost.kind == "investment" {
             monthly_investing += monthly;
-        } else if is_essential {
+        } else if cost.is_essential {
             monthly_essential += monthly;
         } else {
             monthly_non_essential += monthly;

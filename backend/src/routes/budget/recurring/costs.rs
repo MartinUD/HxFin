@@ -9,11 +9,10 @@ use axum::{
 // repeated keys like `?categoryIds=1&categoryIds=2` into a Vec. The stock
 // axum Query uses serde_urlencoded and would only keep the last value.
 use axum_extra::extract::Query;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::{QueryBuilder, Row, Sqlite};
+use sqlx::{QueryBuilder, Sqlite};
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct RecurringCost {
     id: i64,
@@ -72,22 +71,6 @@ pub fn router() -> Router<Db> {
         .route("/costs/{id}", delete(remove))
 }
 
-fn row_to_cost(row: sqlx::sqlite::SqliteRow) -> Result<RecurringCost, sqlx::Error> {
-    Ok(RecurringCost {
-        id: row.try_get("id")?,
-        category_id: row.try_get("category_id")?,
-        name: row.try_get("name")?,
-        amount: row.try_get("amount")?,
-        period: row.try_get("period")?,
-        kind: row.try_get("kind")?,
-        is_essential: row.try_get("is_essential")?,
-        start_date: row.try_get("start_date")?,
-        end_date: row.try_get("end_date")?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
-}
-
 // CAST amount AS REAL because NUMERIC columns can be stored as INTEGER under
 // SQLite's dynamic typing and sqlx refuses to decode those into f64.
 const SELECT_COLUMNS: &str =
@@ -112,11 +95,7 @@ async fn list(
 
     qb.push(" ORDER BY created_at DESC");
 
-    let rows = qb.build().fetch_all(&db).await?;
-    let costs = rows
-        .into_iter()
-        .map(row_to_cost)
-        .collect::<Result<Vec<_>, sqlx::Error>>()?;
+    let costs: Vec<RecurringCost> = qb.build_query_as().fetch_all(&db).await?;
 
     Ok(Json(costs))
 }
@@ -138,7 +117,7 @@ async fn create(
     };
 
     // id is INTEGER PRIMARY KEY AUTOINCREMENT — SQLite assigns it on INSERT.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
 
     let sql = format!(
         "INSERT INTO recurring_costs \
@@ -147,7 +126,7 @@ async fn create(
          RETURNING {SELECT_COLUMNS}"
     );
 
-    let row = sqlx::query(&sql)
+    let cost: RecurringCost = sqlx::query_as(&sql)
         .bind(payload.category_id)
         .bind(&payload.name)
         .bind(payload.amount)
@@ -161,7 +140,7 @@ async fn create(
         .fetch_one(&db)
         .await?;
 
-    Ok((StatusCode::CREATED, Json(row_to_cost(row)?)))
+    Ok((StatusCode::CREATED, Json(cost)))
 }
 
 // PATCH /budget/costs/{id}
@@ -179,7 +158,7 @@ async fn update(
     } else {
         payload.is_essential
     };
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
 
     let sql = format!(
         "UPDATE recurring_costs \
@@ -189,7 +168,7 @@ async fn update(
          RETURNING {SELECT_COLUMNS}"
     );
 
-    let row = sqlx::query(&sql)
+    let cost: RecurringCost = sqlx::query_as(&sql)
         .bind(payload.category_id)
         .bind(&payload.name)
         .bind(payload.amount)
@@ -204,7 +183,7 @@ async fn update(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Recurring cost {id} not found")))?;
 
-    Ok(Json(row_to_cost(row)?))
+    Ok(Json(cost))
 }
 
 // DELETE /budget/costs/{id}

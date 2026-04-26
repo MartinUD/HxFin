@@ -1,8 +1,6 @@
 //! CRUD for planned-purchase items.
 //!
-//! Table is still named `wishlist_items`; rename tracked in MartinUD/HxFin#6.
-//! `id`, `category_id`, and `linked_loan_id` are all INTEGER — `id`/`category_id`
-//! since migration 0020, `linked_loan_id` since migration 0021.
+//! `id`, `category_id`, and `linked_loan_id` are all INTEGER.
 //!
 //! Frontend contract: `src/lib/schema/wishlist.ts` (`WishlistItemSchema`,
 //! `CreateWishlistItemInputSchema`, `UpdateWishlistItemInputSchema`,
@@ -18,9 +16,8 @@ use axum::{
 // serde_html_form-backed Query handles optional/missing params the same way
 // stock axum Query does; we use axum_extra here for consistency with costs.rs.
 use axum_extra::extract::Query;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::{QueryBuilder, Row, Sqlite};
+use sqlx::{QueryBuilder, Sqlite};
 
 // Mirrors `CreateWishlistItemInputSchema.name.maxLength(160)` in wishlist.ts.
 const MAX_NAME_LENGTH: usize = 160;
@@ -31,7 +28,7 @@ const MAX_NAME_LENGTH: usize = 160;
 const FUNDING_STRATEGIES: &[&str] = &["save", "loan", "mixed", "buy_outright"];
 const TARGET_AMOUNT_TYPES: &[&str] = &["exact", "estimate"];
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct PlannedPurchase {
     pub id: i64,
@@ -86,23 +83,6 @@ const SELECT_COLUMNS: &str = "id, name, CAST(target_amount AS REAL) AS target_am
      target_amount_type, target_date, priority, category_id, funding_strategy, \
      linked_loan_id, notes, created_at, updated_at";
 
-fn row_to_purchase(row: sqlx::sqlite::SqliteRow) -> Result<PlannedPurchase, sqlx::Error> {
-    Ok(PlannedPurchase {
-        id: row.try_get("id")?,
-        name: row.try_get("name")?,
-        target_amount: row.try_get("target_amount")?,
-        target_amount_type: row.try_get("target_amount_type")?,
-        target_date: row.try_get("target_date")?,
-        priority: row.try_get("priority")?,
-        category_id: row.try_get("category_id")?,
-        funding_strategy: row.try_get("funding_strategy")?,
-        linked_loan_id: row.try_get("linked_loan_id")?,
-        notes: row.try_get("notes")?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
-}
-
 // Trimmed, empty-collapsed-to-None form of the incoming payload. We validate
 // once and then bind the normalized values so the DB row matches what we
 // actually checked.
@@ -121,9 +101,7 @@ struct Normalized<'a> {
 // TS's `normalizeNullableText`: treat whitespace-only strings as null so a
 // blank text input from the frontend doesn't persist as an empty `notes`.
 fn blank_to_none(value: Option<&str>) -> Option<&str> {
-    value
-        .map(str::trim)
-        .filter(|trimmed| !trimmed.is_empty())
+    value.map(str::trim).filter(|trimmed| !trimmed.is_empty())
 }
 
 fn validate(payload: &PurchasePayload) -> Result<Normalized<'_>, AppError> {
@@ -197,13 +175,11 @@ fn validate(payload: &PurchasePayload) -> Result<Normalized<'_>, AppError> {
 // resource name instead of a generic FK-violation 500. The DB's FK enforcement
 // (PRAGMA foreign_keys = ON) still acts as a last line of defense.
 async fn ensure_category_exists(db: &Db, id: i64) -> Result<(), AppError> {
-    let exists = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM wishlist_categories WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(db)
-    .await?
-    .is_some();
+    let exists = sqlx::query_scalar::<_, i64>("SELECT 1 FROM purchase_categories WHERE id = ?")
+        .bind(id)
+        .fetch_optional(db)
+        .await?
+        .is_some();
 
     if !exists {
         return Err(AppError::NotFound(format!(
@@ -246,7 +222,7 @@ async fn list(
     Query(query): Query<ListQuery>,
 ) -> Result<Json<Vec<PlannedPurchase>>, AppError> {
     let mut qb: QueryBuilder<Sqlite> =
-        QueryBuilder::new(format!("SELECT {SELECT_COLUMNS} FROM wishlist_items"));
+        QueryBuilder::new(format!("SELECT {SELECT_COLUMNS} FROM planned_purchases"));
 
     if let Some(strategy) = query.funding_strategy.as_deref() {
         // Bogus values simply return an empty list — no need to validate a
@@ -254,15 +230,9 @@ async fn list(
         qb.push(" WHERE funding_strategy = ").push_bind(strategy);
     }
 
-    qb.push(
-        " ORDER BY priority DESC, target_date IS NULL ASC, target_date ASC, created_at DESC",
-    );
+    qb.push(" ORDER BY priority DESC, target_date IS NULL ASC, target_date ASC, created_at DESC");
 
-    let rows = qb.build().fetch_all(&db).await?;
-    let items = rows
-        .into_iter()
-        .map(row_to_purchase)
-        .collect::<Result<Vec<_>, sqlx::Error>>()?;
+    let items: Vec<PlannedPurchase> = qb.build_query_as().fetch_all(&db).await?;
 
     Ok(Json(items))
 }
@@ -278,9 +248,9 @@ async fn create(
     // id is INTEGER PRIMARY KEY AUTOINCREMENT — SQLite assigns it on INSERT.
     // currency hardcoded to 'SEK' to satisfy the NOT NULL DEFAULT column;
     // it isn't part of the frontend schema.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
-        "INSERT INTO wishlist_items \
+        "INSERT INTO planned_purchases \
          (name, target_amount, target_amount_type, target_date, priority, \
           category_id, funding_strategy, linked_loan_id, currency, notes, \
           created_at, updated_at) \
@@ -288,7 +258,7 @@ async fn create(
          RETURNING {SELECT_COLUMNS}"
     );
 
-    let row = sqlx::query(&sql)
+    let item: PlannedPurchase = sqlx::query_as(&sql)
         .bind(n.name)
         .bind(n.target_amount)
         .bind(n.target_amount_type)
@@ -303,7 +273,7 @@ async fn create(
         .fetch_one(&db)
         .await?;
 
-    Ok((StatusCode::CREATED, Json(row_to_purchase(row)?)))
+    Ok((StatusCode::CREATED, Json(item)))
 }
 
 // PATCH /budget/planned-purchases/{id}
@@ -317,9 +287,9 @@ async fn update(
     let n = validate(&payload)?;
     ensure_fk_targets_exist(&db, &n).await?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
-        "UPDATE wishlist_items \
+        "UPDATE planned_purchases \
          SET name = ?, target_amount = ?, target_amount_type = ?, target_date = ?, \
              priority = ?, category_id = ?, funding_strategy = ?, linked_loan_id = ?, \
              notes = ?, updated_at = ? \
@@ -327,7 +297,7 @@ async fn update(
          RETURNING {SELECT_COLUMNS}"
     );
 
-    let row = sqlx::query(&sql)
+    let item: PlannedPurchase = sqlx::query_as(&sql)
         .bind(n.name)
         .bind(n.target_amount)
         .bind(n.target_amount_type)
@@ -343,18 +313,20 @@ async fn update(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Planned purchase {id} not found")))?;
 
-    Ok(Json(row_to_purchase(row)?))
+    Ok(Json(item))
 }
 
 // DELETE /budget/planned-purchases/{id}
 async fn remove(State(db): State<Db>, Path(id): Path<i64>) -> Result<StatusCode, AppError> {
-    let result = sqlx::query("DELETE FROM wishlist_items WHERE id = ?")
+    let result = sqlx::query("DELETE FROM planned_purchases WHERE id = ?")
         .bind(id)
         .execute(&db)
         .await?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::NotFound(format!("Planned purchase {id} not found")));
+        return Err(AppError::NotFound(format!(
+            "Planned purchase {id} not found"
+        )));
     }
 
     Ok(StatusCode::NO_CONTENT)

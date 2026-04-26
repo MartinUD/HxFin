@@ -18,9 +18,7 @@ use axum::{
     routing::{get, put},
     Json, Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 
 // Lazy-seed defaults for the singleton row. Mirrors
 // `DEFAULT_FINANCIAL_PROFILE_INPUT` in `src/lib/schema/finance.ts` and the
@@ -38,7 +36,7 @@ const DEFAULT_CURRENCY: &str = "SEK";
 // codes are always 3 characters.
 const CURRENCY_CODE_LENGTH: usize = 3;
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct FinancialProfile {
     pub id: i64,
@@ -83,32 +81,22 @@ const SELECT_COLUMNS: &str = "id, \
      CAST(savings_share_of_raise AS REAL) AS savings_share_of_raise, \
      currency, created_at, updated_at";
 
-fn row_to_profile(row: sqlx::sqlite::SqliteRow) -> Result<FinancialProfile, sqlx::Error> {
-    Ok(FinancialProfile {
-        id: row.try_get("id")?,
-        monthly_salary: row.try_get("monthly_salary")?,
-        salary_growth: row.try_get("salary_growth")?,
-        municipal_tax_rate: row.try_get("municipal_tax_rate")?,
-        savings_share_of_raise: row.try_get("savings_share_of_raise")?,
-        currency: row.try_get("currency")?,
-        created_at: row.try_get("created_at")?,
-        updated_at: row.try_get("updated_at")?,
-    })
-}
-
 // Ensures the singleton row exists and returns it. Uses ORDER BY id LIMIT 1
 // rather than WHERE id = 1 because the AUTOINCREMENT sequence is an
 // implementation detail we'd rather not pin queries to; in practice there's
 // exactly one row.
 async fn ensure_profile(db: &Db) -> Result<FinancialProfile, AppError> {
     let select_sql = format!("SELECT {SELECT_COLUMNS} FROM financial_profile ORDER BY id LIMIT 1");
-    if let Some(row) = sqlx::query(&select_sql).fetch_optional(db).await? {
-        return Ok(row_to_profile(row)?);
+    if let Some(profile) = sqlx::query_as::<_, FinancialProfile>(&select_sql)
+        .fetch_optional(db)
+        .await?
+    {
+        return Ok(profile);
     }
 
     // First run — lazy-seed with the defaults. Matches the TS
     // `ensureProfileExists()` helper.
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let insert_sql = format!(
         "INSERT INTO financial_profile \
          (monthly_salary, salary_growth, municipal_tax_rate, savings_share_of_raise, \
@@ -116,7 +104,7 @@ async fn ensure_profile(db: &Db) -> Result<FinancialProfile, AppError> {
          VALUES (?, ?, ?, ?, ?, ?, ?) \
          RETURNING {SELECT_COLUMNS}"
     );
-    let row = sqlx::query(&insert_sql)
+    let profile: FinancialProfile = sqlx::query_as(&insert_sql)
         .bind(DEFAULT_MONTHLY_SALARY)
         .bind(DEFAULT_SALARY_GROWTH)
         .bind(DEFAULT_MUNICIPAL_TAX_RATE)
@@ -127,7 +115,7 @@ async fn ensure_profile(db: &Db) -> Result<FinancialProfile, AppError> {
         .fetch_one(db)
         .await?;
 
-    Ok(row_to_profile(row)?)
+    Ok(profile)
 }
 
 // GET /budget/income
@@ -212,7 +200,7 @@ async fn update_profile(
     // seed step.
     let existing = ensure_profile(&db).await?;
 
-    let now = Utc::now().to_rfc3339();
+    let now = crate::time::iso_timestamp_now();
     let sql = format!(
         "UPDATE financial_profile \
          SET monthly_salary = COALESCE(?, monthly_salary), \
@@ -225,7 +213,7 @@ async fn update_profile(
          RETURNING {SELECT_COLUMNS}"
     );
 
-    let row = sqlx::query(&sql)
+    let profile: FinancialProfile = sqlx::query_as(&sql)
         .bind(payload.monthly_salary)
         .bind(payload.salary_growth)
         .bind(payload.municipal_tax_rate)
@@ -236,5 +224,5 @@ async fn update_profile(
         .fetch_one(&db)
         .await?;
 
-    Ok(Json(row_to_profile(row)?))
+    Ok(Json(profile))
 }

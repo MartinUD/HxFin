@@ -6,7 +6,7 @@ import {
 	sortValue,
 	toggleSort,
 	type SortState,
-} from '../src/lib/components/ui/table/sort.ts';
+} from '../src/lib/shadcn-prim/table/sort.ts';
 
 type SortKey = 'name' | 'amount';
 

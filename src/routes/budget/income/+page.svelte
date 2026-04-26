@@ -1,5 +1,5 @@
 <script lang="ts">
-	import IncomeWorkspace from '$lib/features/budget/IncomeWorkspace.svelte';
+	import IncomeWorkspace from '$lib/features/budget/income/IncomeWorkspace.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
